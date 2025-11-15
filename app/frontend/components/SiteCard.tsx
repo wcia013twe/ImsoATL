@@ -3,6 +3,7 @@ import type { RecommendedSite } from '@/lib/types';
 type SiteCardProps = {
   rank: number;
   site: RecommendedSite;
+  onClick?: () => void;
 };
 
 // Priority tier configuration
@@ -75,7 +76,7 @@ function getIcon(site: RecommendedSite): string {
   return '📍'; // Default location pin
 }
 
-export default function SiteCard({ rank, site }: SiteCardProps) {
+export default function SiteCard({ rank, site, onClick }: SiteCardProps) {
   const tier = tierConfig[site.recommendation_tier] || tierConfig.low_priority;
   const reasoning = generateReasoning(site);
   const icon = getIcon(site);
@@ -83,8 +84,9 @@ export default function SiteCard({ rank, site }: SiteCardProps) {
 
   return (
     <div
-      className="civic-card border-l-4"
+      className={`civic-card border-l-4 ${onClick ? 'cursor-pointer hover:bg-surface-hover transition-colors' : ''}`}
       style={{ borderLeftColor: tier.color }}
+      onClick={onClick}
     >
       <div className="flex items-start gap-3">
         {/* Rank Badge */}

@@ -100,37 +100,23 @@ function osmToGeoJSON(osmData) {
     throw new Error('No outer members found in relation');
   }
 
-  // Extract all coordinate segments
-  const segments = [];
+  // Extract all coordinate segments as separate linestrings
+  const coordinates = [];
   for (const member of outerMembers) {
     if (member.geometry && member.geometry.length > 0) {
       const coords = member.geometry.map(node => [node.lon, node.lat]);
-      segments.push(coords);
+      coordinates.push(coords);
     }
   }
 
-  if (segments.length === 0) {
+  if (coordinates.length === 0) {
     throw new Error('No coordinates found in relation members');
   }
 
-  // Stitch segments together into a single ring
-  // This is a simple approach - assumes segments are ordered
-  const stitchedRing = segments[0];
-  for (let i = 1; i < segments.length; i++) {
-    const segment = segments[i];
-    // Remove duplicate point at join
-    if (stitchedRing[stitchedRing.length - 1][0] === segment[0][0] &&
-        stitchedRing[stitchedRing.length - 1][1] === segment[0][1]) {
-      stitchedRing.push(...segment.slice(1));
-    } else {
-      stitchedRing.push(...segment);
-    }
-  }
-
-  // Create simple Polygon geometry (treating all outer members as single ring)
+  // Create MultiLineString geometry to avoid connecting segments incorrectly
   const geometry = {
-    type: 'Polygon',
-    coordinates: [stitchedRing]
+    type: 'MultiLineString',
+    coordinates: coordinates
   };
 
   return {

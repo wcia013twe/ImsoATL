@@ -4,9 +4,11 @@ import { useState } from 'react';
 
 export default function DashboardHeader({
   onToggleChat,
+  onToggleRecommendations,
   cityName
 }: {
   onToggleChat: () => void;
+  onToggleRecommendations?: () => void;
   cityName?: string;
 }) {
   const [darkMode, setDarkMode] = useState(true);
@@ -22,7 +24,7 @@ export default function DashboardHeader({
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
+    <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
       <div className="flex items-center justify-between px-6 py-4">
         {/* Left: Logo/Title and Chat Toggle */}
         <div className="flex items-center gap-4">
@@ -42,8 +44,22 @@ export default function DashboardHeader({
           </div>
         </div>
 
-        {/* Right: Export Tools and Dark Mode Toggle */}
+        {/* Right: Sites Button, Export Tools and Dark Mode Toggle */}
         <div className="flex items-center gap-3">
+          {/* Sites/Recommendations Button */}
+          {onToggleRecommendations && (
+            <button
+              onClick={onToggleRecommendations}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-civic-green text-white font-semibold hover:bg-civic-green-600 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Sites
+            </button>
+          )}
+
           {/* Export Buttons */}
           <div className="flex items-center gap-2 mr-4">
             <span className="text-sm text-muted font-medium mr-2">Export:</span>

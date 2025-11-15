@@ -7,12 +7,14 @@ interface RecommendationsSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   deploymentPlan: DeploymentPlan | null;
+  onSiteClick?: (siteIndex: number) => void;
 }
 
 export default function RecommendationsSidebar({
   isOpen,
   onClose,
-  deploymentPlan
+  deploymentPlan,
+  onSiteClick
 }: RecommendationsSidebarProps) {
   return (
     <>
@@ -93,6 +95,7 @@ export default function RecommendationsSidebar({
                     key={site.tract_id}
                     site={site}
                     rank={index + 1}
+                    onClick={onSiteClick ? () => onSiteClick(index) : undefined}
                   />
                 ))}
               </div>
