@@ -5,6 +5,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MAPBOX_CONFIG, MAP_LAYERS } from '@/lib/mapbox-config';
 import MapLayerControl from './MapLayerControl';
+import type { DeploymentPlan } from '@/lib/types';
 
 // Mock data sources - replace with real data in backend integration
 const MOCK_DATA = {
@@ -66,7 +67,15 @@ const LAYER_CONFIG = [
   { id: 'existing-wifi', label: 'Existing WiFi', color: '#6B7280' },
 ];
 
-export default function InteractiveMap() {
+export default function InteractiveMap({
+  cityCenter,
+  cityName,
+  recommendations
+}: {
+  cityCenter?: [number, number];
+  cityName?: string;
+  recommendations?: DeploymentPlan | null;
+}) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [activeLayers, setActiveLayers] = useState<string[]>([
@@ -75,6 +84,10 @@ export default function InteractiveMap() {
     'candidate-sites',
   ]);
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  // Use provided city coordinates or default to Atlanta
+  const mapCenter = cityCenter || [MAPBOX_CONFIG.atlantaCenter.lng, MAPBOX_CONFIG.atlantaCenter.lat];
+  const mapZoom = cityCenter ? 11.5 : MAPBOX_CONFIG.atlantaCenter.zoom;
 
   // Initialize map
   useEffect(() => {
@@ -85,19 +98,41 @@ export default function InteractiveMap() {
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: MAPBOX_CONFIG.defaultStyle,
-      center: [MAPBOX_CONFIG.atlantaCenter.lng, MAPBOX_CONFIG.atlantaCenter.lat],
-      zoom: MAPBOX_CONFIG.atlantaCenter.zoom,
+      center: mapCenter,
+      zoom: mapZoom,
     });
 
     map.current.on('load', () => {
       if (!map.current) return;
 
-      // Add data sources
-      map.current.addSource('atlanta-boundary', {
-        type: 'geojson',
-        data: MOCK_DATA.atlantaBoundary,
-      });
+      // Load Atlanta GeoJSON boundary data
+      fetch('/data/tl_2024_13_bg.json')
+        .then(response => response.json())
+        .then(data => {
+          if (!map.current) return;
 
+          // Add Atlanta boundary source with real GeoJSON data
+          map.current.addSource('atlanta-boundary', {
+            type: 'geojson',
+            data: data,
+          });
+
+          // Add the boundary layer
+          map.current.addLayer(MAP_LAYERS.atlantaBoundary);
+        })
+        .catch(error => {
+          console.error('Error loading Atlanta GeoJSON:', error);
+          // Fallback to mock data if GeoJSON fails to load
+          if (map.current) {
+            map.current.addSource('atlanta-boundary', {
+              type: 'geojson',
+              data: MOCK_DATA.atlantaBoundary,
+            });
+            map.current.addLayer(MAP_LAYERS.atlantaBoundary);
+          }
+        });
+
+      // Add other data sources
       map.current.addSource('libraries', {
         type: 'geojson',
         data: MOCK_DATA.libraries,
@@ -108,8 +143,7 @@ export default function InteractiveMap() {
         data: MOCK_DATA.candidateSites,
       });
 
-      // Add layers
-      map.current.addLayer(MAP_LAYERS.atlantaBoundary);
+      // Add other layers
       map.current.addLayer(MAP_LAYERS.libraries);
       map.current.addLayer(MAP_LAYERS.candidateSites);
 
@@ -151,7 +185,100 @@ export default function InteractiveMap() {
       map.current?.remove();
       map.current = null;
     };
-  }, []);
+  }, [mapCenter, mapZoom]);
+
+  // Display recommendations when received
+  useEffect(() => {
+    if (!map.current || !mapLoaded || !recommendations) return;
+
+    // Convert recommendations to GeoJSON features
+    // Note: This is simplified - assumes center point of Atlanta for now
+    // In production, use actual tract geometries
+    const recommendedFeatures = recommendations.recommended_sites.map((site, index) => ({
+      type: 'Feature' as const,
+      geometry: {
+        type: 'Point' as const,
+        // Simplified: use approximate Atlanta center + offset
+        coordinates: [-84.388 + (index * 0.02), 33.749 + (index * 0.02)] as [number, number]
+      },
+      properties: {
+        name: site.name || `Site ${index + 1}`,
+        composite_score: site.composite_score,
+        poverty_rate: site.poverty_rate,
+        no_internet_pct: site.no_internet_pct,
+        recommendation_tier: site.recommendation_tier
+      }
+    }));
+
+    const recommendationsGeoJSON = {
+      type: 'FeatureCollection' as const,
+      features: recommendedFeatures
+    };
+
+    // Add or update recommendations layer
+    if (map.current.getSource('ai-recommendations')) {
+      (map.current.getSource('ai-recommendations') as mapboxgl.GeoJSONSource).setData(recommendationsGeoJSON);
+    } else {
+      map.current.addSource('ai-recommendations', {
+        type: 'geojson',
+        data: recommendationsGeoJSON
+      });
+
+      map.current.addLayer({
+        id: 'ai-recommendations',
+        type: 'circle',
+        source: 'ai-recommendations',
+        paint: {
+          'circle-radius': 10,
+          'circle-color': [
+            'match',
+            ['get', 'recommendation_tier'],
+            'top_priority', '#DC2626',
+            'high_priority', '#F59E0B',
+            'medium_priority', '#3B82F6',
+            '#6B7280'
+          ],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#fff'
+        }
+      });
+
+      // Add popup on click
+      map.current.on('click', 'ai-recommendations', (e) => {
+        if (!map.current || !e.features || !e.features[0]) return;
+        const feature = e.features[0];
+        const props = feature.properties;
+
+        new mapboxgl.Popup()
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div style="font-family: system-ui; padding: 4px;">
+              <strong style="color: #1f2937; font-size: 14px;">${props?.name}</strong><br/>
+              <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+                <div><strong>Score:</strong> ${props?.composite_score}/100</div>
+                <div><strong>Poverty Rate:</strong> ${props?.poverty_rate}%</div>
+                <div><strong>No Internet:</strong> ${props?.no_internet_pct}%</div>
+                <div><strong>Priority:</strong> ${props?.recommendation_tier}</div>
+              </div>
+            </div>
+          `)
+          .addTo(map.current);
+      });
+
+      map.current.on('mouseenter', 'ai-recommendations', () => {
+        if (map.current) map.current.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.current.on('mouseleave', 'ai-recommendations', () => {
+        if (map.current) map.current.getCanvas().style.cursor = '';
+      });
+    }
+
+    // Enable the layer in active layers
+    if (!activeLayers.includes('ai-recommendations')) {
+      setActiveLayers(prev => [...prev, 'ai-recommendations']);
+    }
+  }, [recommendations, mapLoaded]);
 
   // Toggle layer visibility
   const toggleLayer = (layerId: string) => {
@@ -180,8 +307,8 @@ export default function InteractiveMap() {
     <section className="w-full py-8">
       <div className="max-w-7xl mx-auto px-6">
         <div className="civic-card relative">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-            Interactive Site Map
+          <h2 className="text-2xl font-semibold text-foreground mb-4">
+            {cityName ? `${cityName} WiFi Network Map` : 'Interactive Site Map'}
           </h2>
 
           {/* Map Container */}
@@ -213,45 +340,45 @@ export default function InteractiveMap() {
           {/* Map Legend */}
           <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
             <div>
-              <h4 className="font-medium text-gray-900 mb-2">Census Data</h4>
+              <h4 className="font-medium text-foreground mb-2">Census Data</h4>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded bg-[#19B987]" />
-                  <span className="text-gray-700">High Poverty</span>
+                  <span className="text-accent">High Poverty</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded bg-[#2691FF]" />
-                  <span className="text-gray-700">Low Internet Access</span>
+                  <span className="text-accent">Low Internet Access</span>
                 </div>
               </div>
             </div>
             <div>
-              <h4 className="font-medium text-gray-900 mb-2">Local Assets</h4>
+              <h4 className="font-medium text-foreground mb-2">Local Assets</h4>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full bg-[#7C3AED]" />
-                  <span className="text-gray-700">Libraries</span>
+                  <span className="text-accent">Libraries</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full bg-[#DC2626]" />
-                  <span className="text-gray-700">Community Centers</span>
+                  <span className="text-accent">Community Centers</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full bg-[#7DBDFF]" />
-                  <span className="text-gray-700">Transit Stops</span>
+                  <span className="text-accent">Transit Stops</span>
                 </div>
               </div>
             </div>
             <div>
-              <h4 className="font-medium text-gray-900 mb-2">WiFi Sites</h4>
+              <h4 className="font-medium text-foreground mb-2">WiFi Sites</h4>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full bg-[#2691FF]" />
-                  <span className="text-gray-700">Candidate Sites</span>
+                  <span className="text-accent">Candidate Sites</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full bg-[#6B7280]" />
-                  <span className="text-gray-700">Existing WiFi</span>
+                  <span className="text-accent">Existing WiFi</span>
                 </div>
               </div>
             </div>

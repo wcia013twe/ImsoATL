@@ -13,13 +13,13 @@ export default function LandingPage() {
           {/* Logo/Title */}
           <div className="space-y-6">
             <div className="inline-block">
-              <h1
-                className="text-7xl font-bold tracking-tight mb-3"
+              {/* <h1
+                className="text-6xl font-bold tracking-tight mb-3"
                 style={{ color: 'var(--civic-blue-500)' }}
               >
-                All WiFi
-              </h1>
-              <div className="flex items-center justify-center gap-3 text-sm font-semibold text-muted tracking-widest">
+                All Together Linked
+              </h1> */}
+              <div className="flex items-center justify-center gap-3 text-2xl pt-5 font-semibold text-muted tracking-widest">
                 <span>ALL TOGETHER LINKED</span>
                 <span className="text-civic-blue">•</span>
                 <span className="text-civic-blue">ATL</span>
@@ -34,14 +34,11 @@ export default function LandingPage() {
           </div>
 
           {/* Value Proposition */}
-          <div className="max-w-2xl mx-auto space-y-4">
-            <p className="text-xl text-foreground leading-relaxed font-medium">
-              We believe digital access is a right, not a privilege.
-            </p>
+          {/* <div className="max-w-2xl mx-auto space-y-4">
             <p className="text-lg text-accent leading-relaxed">
               Our AI-powered platform helps city officials plan and deploy public WiFi networks that maximize equity, minimize cost, and transform communities through connectivity.
             </p>
-          </div>
+          </div> */}
 
           {/* City Selector */}
           <div className="mt-12 space-y-3">
@@ -106,10 +103,6 @@ export default function LandingPage() {
             </p>
           </div>
 
-          {/* Footer Note */}
-          <p className="text-sm text-muted mt-8">
-            🤖 AI-Powered • 🏛️ Built for Cities • ⚖️ Optimized for Equity
-          </p>
         </div>
       </div>
     </div>
