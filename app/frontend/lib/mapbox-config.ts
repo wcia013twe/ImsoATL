@@ -14,15 +14,15 @@ export const MAPBOX_CONFIG = {
 };
 
 export const MAP_LAYERS = {
-  // Atlanta city boundary
+  // Atlanta city boundary - just outlines, no fill
   atlantaBoundary: {
     id: 'atlanta-boundary',
     type: 'line' as const,
     source: 'atlanta-boundary',
     paint: {
       'line-color': '#2691FF',
-      'line-width': 3,
-      'line-opacity': 0.8,
+      'line-width': 1.5,
+      'line-opacity': 0.6,
     },
   },
 

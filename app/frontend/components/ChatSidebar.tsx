@@ -4,6 +4,37 @@ import { useState, useRef, useEffect } from 'react';
 import type { ChatMessage, AgentStep, WebSocketMessage, DeploymentPlan } from '@/lib/types';
 
 const WEBSOCKET_URL = 'ws://localhost:8000/ws/chat';
+const STORAGE_KEY = 'atlas-chat-messages';
+
+const getInitialMessages = (): ChatMessage[] => {
+  if (typeof window === 'undefined') return getDefaultMessages();
+
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Convert timestamp strings back to Date objects
+      const messagesWithDates = parsed.map((msg: any) => ({
+        ...msg,
+        timestamp: new Date(msg.timestamp)
+      }));
+      return messagesWithDates.length > 0 ? messagesWithDates : getDefaultMessages();
+    }
+  } catch (error) {
+    console.error('Error loading chat messages:', error);
+  }
+
+  return getDefaultMessages();
+};
+
+const getDefaultMessages = (): ChatMessage[] => [
+  {
+    id: '1',
+    role: 'assistant',
+    content: "Hi! I'm your WiFi planning assistant powered by multi-agent AI. I analyze Census demographics, FCC broadband data, and civic assets to recommend optimal deployment sites. Ask me anything!",
+    timestamp: new Date()
+  }
+];
 
 export default function ChatSidebar({
   isOpen,
@@ -16,14 +47,7 @@ export default function ChatSidebar({
   cityName?: string;
   onRecommendationsReceived?: (plan: DeploymentPlan) => void;
 }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: "Hi! I'm your WiFi planning assistant powered by multi-agent AI. I analyze Census demographics, FCC broadband data, and civic assets to recommend optimal deployment sites. Ask me anything!",
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>(getInitialMessages);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentAgentSteps, setCurrentAgentSteps] = useState<AgentStep[]>([]);
@@ -52,6 +76,17 @@ export default function ChatSidebar({
       inputRef.current.focus();
     }
   }, [isOpen]);
+
+  // Persist messages to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+      } catch (error) {
+        console.error('Error saving chat messages:', error);
+      }
+    }
+  }, [messages]);
 
   const connectWebSocket = (userMessage: string) => {
     const ws = new WebSocket(WEBSOCKET_URL);
@@ -177,6 +212,18 @@ export default function ChatSidebar({
     }
   };
 
+  const handleClearConversation = () => {
+    if (confirm('Are you sure you want to clear the conversation history?')) {
+      const defaultMessages = getDefaultMessages();
+      setMessages(defaultMessages);
+      setCurrentAgentSteps([]);
+      setShowSuggestions(true);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+  };
+
   const getAgentIcon = (agentName: string): string => {
     if (agentName.includes('Query Parser')) return '🔍';
     if (agentName.includes('Census')) return '📊';
@@ -185,6 +232,14 @@ export default function ChatSidebar({
     if (agentName.includes('Ranking')) return '⚖️';
     if (agentName.includes('Explainer')) return '✨';
     return '🤖';
+  };
+
+  const isOrchestratorThinking = (step: AgentStep): boolean => {
+    return step.agent.includes('Orchestrator') && step.status === 'completed';
+  };
+
+  const isProcessRunning = (step: AgentStep): boolean => {
+    return step.status === 'in_progress' && !step.agent.includes('Orchestrator');
   };
 
   return (
@@ -202,14 +257,26 @@ export default function ChatSidebar({
               <div className="w-2 h-2 rounded-full bg-civic-green animate-pulse" />
               <h2 className="text-lg font-semibold text-foreground">Multi-Agent AI Assistant</h2>
             </div>
-            <button
-              onClick={onClose}
-              className="p-1 rounded-lg hover:bg-surface-hover transition-colors text-muted hover:text-foreground"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleClearConversation}
+                className="p-1 rounded-lg hover:bg-surface-hover transition-colors text-muted hover:text-foreground"
+                title="Clear conversation"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+              <button
+                onClick={onClose}
+                className="p-1 rounded-lg hover:bg-surface-hover transition-colors text-muted hover:text-foreground"
+                title="Close chat"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
@@ -255,34 +322,43 @@ export default function ChatSidebar({
               </div>
             ))}
 
-            {/* Live Agent Steps */}
+            {/* Live Agent Steps - Displayed as individual messages */}
             {isProcessing && currentAgentSteps.length > 0 && (
-              <div className="flex justify-start">
-                <div className="max-w-[90%] bg-surface-hover border border-border rounded-2xl px-4 py-3">
-                  <div className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
-                    Analyzing...
-                  </div>
-                  <div className="space-y-2">
-                    {currentAgentSteps.map((step, idx) => (
-                      <div key={idx} className="text-xs flex items-start gap-2">
+              <>
+                {currentAgentSteps.map((step, idx) => (
+                  <div key={idx} className="flex justify-start">
+                    <div className="max-w-[90%] bg-surface-hover border border-border rounded-2xl px-4 py-3">
+                      <div className="text-xs flex items-start gap-2">
                         <span className="flex-shrink-0 mt-0.5">{getAgentIcon(step.agent)}</span>
                         <div className="flex-1">
                           <div className="font-semibold text-foreground flex items-center gap-2">
                             {step.agent}
-                            {step.status === 'in_progress' && (
-                              <div className="w-1.5 h-1.5 bg-civic-blue rounded-full animate-pulse" />
+                            {isProcessRunning(step) && (
+                              <svg className="w-3 h-3 animate-spin text-civic-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
                             )}
-                            {step.status === 'completed' && (
+                            {step.status === 'completed' && !isOrchestratorThinking(step) && (
                               <span className="text-civic-green">✓</span>
                             )}
                           </div>
-                          <div className="text-accent">{step.action}</div>
+                          <div className="text-accent mt-1">
+                            {step.action}
+                            {isOrchestratorThinking(step) && (
+                              <span className="inline-flex ml-1">
+                                <span className="animate-[bounce_1s_infinite_0ms]">.</span>
+                                <span className="animate-[bounce_1s_infinite_200ms]">.</span>
+                                <span className="animate-[bounce_1s_infinite_400ms]">.</span>
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    ))}
+                    </div>
                   </div>
-                </div>
-              </div>
+                ))}
+              </>
             )}
 
             <div ref={messagesEndRef} />

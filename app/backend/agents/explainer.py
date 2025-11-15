@@ -12,11 +12,12 @@ class ExplainerAgent:
 
     def __init__(self, gemini_api_key: str):
         genai.configure(api_key=gemini_api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
 
     async def explain_recommendation(
         self,
         deployment_plan: Dict,
+        
         user_query: str
     ) -> str:
         """
@@ -115,6 +116,58 @@ to identify high-impact deployment sites. Use clear, accessible language."""
 
         response = self.model.generate_content(prompt)
         return response.text
+
+    async def is_conversational_query(self, user_query: str) -> bool:
+        """
+        Determine if query is conversational (greeting, thanks, etc.) vs analytical
+
+        Args:
+            user_query: User's message
+
+        Returns:
+            True if conversational, False if requires data analysis
+        """
+        prompt = f"""
+Determine if this user message requires data analysis or is just conversational.
+
+User message: "{user_query}"
+
+Conversational messages include: greetings (hello, hi, hey), thanks/appreciation,
+farewells (bye, goodbye), general questions about capabilities ("what can you do?"),
+small talk, or acknowledgments (ok, got it, thanks).
+
+Analytical messages include: requests for WiFi deployment recommendations, questions
+about demographics, poverty rates, broadband coverage, internet access, census data,
+deployment sites, or anything requiring data analysis.
+
+Return ONLY "conversational" or "analytical" - no other text."""
+
+        response = self.model.generate_content(prompt)
+        result = response.text.strip().lower()
+        return "conversational" in result
+
+    async def generate_conversational_response(self, user_query: str) -> str:
+        """
+        Generate a friendly response to conversational queries
+
+        Args:
+            user_query: User's conversational message
+
+        Returns:
+            Conversational response
+        """
+        prompt = f"""
+You are a friendly WiFi deployment planning assistant. A user said: "{user_query}"
+
+Generate a brief, warm response. If it's a greeting, greet them back and remind them
+you can help with WiFi deployment planning, Census data, broadband coverage analysis,
+and finding optimal sites for community WiFi. If it's thanks, acknowledge it warmly.
+Keep it to 1-2 sentences.
+
+Be helpful but concise."""
+
+        response = self.model.generate_content(prompt)
+        return response.text.strip()
 
     async def generate_reasoning_steps(
         self,
