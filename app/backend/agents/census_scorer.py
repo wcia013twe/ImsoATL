@@ -2,9 +2,17 @@
 Census Scorer Agent
 Analyzes and scores census tracts based on demographic need
 """
+<<<<<<< HEAD
 from typing import Dict, List
 import sys
 import os
+import dotenv
+=======
+
+from typing import Dict, List
+import sys
+import os
+>>>>>>> origin/feature/backend
 
 # Add parent directory to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -14,6 +22,10 @@ if parent_dir not in sys.path:
 
 from data_sources.census_client import CensusDataClient
 
+<<<<<<< HEAD
+dotenv.load_dotenv()
+=======
+>>>>>>> origin/feature/backend
 
 class CensusScorerAgent:
     """Agent for scoring census tracts based on demographic indicators"""
@@ -22,9 +34,13 @@ class CensusScorerAgent:
         self.census_client = census_client
 
     async def score_tracts_by_need(
+<<<<<<< HEAD
         self,
         state_fips: str = "13",
         weights: Dict[str, float] = None
+=======
+        self, state_fips: str = "13", weights: Dict[str, float] = None
+>>>>>>> origin/feature/backend
     ) -> List[Dict]:
         """
         Score census tracts based on demographic need
@@ -40,9 +56,15 @@ class CensusScorerAgent:
         # Default weights emphasize equity
         if weights is None:
             weights = {
+<<<<<<< HEAD
                 'poverty_rate': 0.4,  # 40% weight
                 'no_internet_pct': 0.4,  # 40% weight
                 'student_pct': 0.2  # 20% weight
+=======
+                "poverty_rate": 0.4,  # 40% weight
+                "no_internet_pct": 0.4,  # 40% weight
+                "student_pct": 0.2,  # 20% weight
+>>>>>>> origin/feature/backend
             }
 
         # Fetch combined census data
@@ -53,6 +75,7 @@ class CensusScorerAgent:
         for tract in census_data:
             # Normalize scores to 0-100 scale
             poverty_score = self._normalize_score(
+<<<<<<< HEAD
                 tract.get('poverty_rate', 0),
                 max_value=50  # 50% poverty rate = max score
             )
@@ -65,28 +88,59 @@ class CensusScorerAgent:
             student_score = self._normalize_score(
                 tract.get('student_pct', 0),
                 max_value=30  # 30% students = max score
+=======
+                tract.get("poverty_rate", 0),
+                max_value=50,  # 50% poverty rate = max score
+            )
+
+            internet_score = self._normalize_score(
+                tract.get("no_internet_pct", 0),
+                max_value=40,  # 40% without internet = max score
+            )
+
+            student_score = self._normalize_score(
+                tract.get("student_pct", 0), max_value=30  # 30% students = max score
+>>>>>>> origin/feature/backend
             )
 
             # Calculate weighted need score
             need_score = (
+<<<<<<< HEAD
                 poverty_score * weights['poverty_rate'] +
                 internet_score * weights['no_internet_pct'] +
                 student_score * weights['student_pct']
+=======
+                poverty_score * weights["poverty_rate"]
+                + internet_score * weights["no_internet_pct"]
+                + student_score * weights["student_pct"]
+>>>>>>> origin/feature/backend
             )
 
             scored_tract = {
                 **tract,
+<<<<<<< HEAD
                 'poverty_score': round(poverty_score, 2),
                 'internet_score': round(internet_score, 2),
                 'student_score': round(student_score, 2),
                 'need_score': round(need_score, 2),
                 'need_category': self._categorize_need(need_score)
+=======
+                "poverty_score": round(poverty_score, 2),
+                "internet_score": round(internet_score, 2),
+                "student_score": round(student_score, 2),
+                "need_score": round(need_score, 2),
+                "need_category": self._categorize_need(need_score),
+>>>>>>> origin/feature/backend
             }
 
             scored_tracts.append(scored_tract)
 
         # Sort by need score (highest first)
+<<<<<<< HEAD
         scored_tracts.sort(key=lambda x: x['need_score'], reverse=True)
+=======
+        scored_tracts.sort(key=lambda x: x["need_score"], reverse=True)
+>>>>>>> origin/feature/backend
 
         return scored_tracts
 
@@ -129,7 +183,11 @@ class CensusScorerAgent:
         self,
         state_fips: str = "13",
         min_poverty_rate: float = None,
+<<<<<<< HEAD
         min_no_internet_pct: float = None
+=======
+        min_no_internet_pct: float = None,
+>>>>>>> origin/feature/backend
     ) -> List[Dict]:
         """
         Filter tracts that meet minimum thresholds for high need
@@ -151,20 +209,34 @@ class CensusScorerAgent:
         high_need_tracts = []
 
         for tract in census_data:
+<<<<<<< HEAD
             poverty_rate = tract.get('poverty_rate', 0)
             no_internet_pct = tract.get('no_internet_pct', 0)
 
             if (poverty_rate >= min_poverty_rate or
                 no_internet_pct >= min_no_internet_pct):
+=======
+            poverty_rate = tract.get("poverty_rate", 0)
+            no_internet_pct = tract.get("no_internet_pct", 0)
+
+            if (
+                poverty_rate >= min_poverty_rate
+                or no_internet_pct >= min_no_internet_pct
+            ):
+>>>>>>> origin/feature/backend
 
                 high_need_tracts.append(tract)
 
         return high_need_tracts
 
+<<<<<<< HEAD
     async def get_summary_statistics(
         self,
         scored_tracts: List[Dict]
     ) -> Dict:
+=======
+    async def get_summary_statistics(self, scored_tracts: List[Dict]) -> Dict:
+>>>>>>> origin/feature/backend
         """
         Generate summary statistics for scored tracts
 
@@ -178,6 +250,7 @@ class CensusScorerAgent:
             return {}
 
         total_tracts = len(scored_tracts)
+<<<<<<< HEAD
         critical_need = len([t for t in scored_tracts if t['need_category'] == 'critical'])
         high_need = len([t for t in scored_tracts if t['need_category'] == 'high'])
 
@@ -196,4 +269,32 @@ class CensusScorerAgent:
             'total_population': total_population,
             'total_below_poverty': total_below_poverty,
             'top_10_tracts': scored_tracts[:10]
+=======
+        critical_need = len(
+            [t for t in scored_tracts if t["need_category"] == "critical"]
+        )
+        high_need = len([t for t in scored_tracts if t["need_category"] == "high"])
+
+        avg_poverty_rate = (
+            sum(t.get("poverty_rate", 0) for t in scored_tracts) / total_tracts
+        )
+        avg_no_internet = (
+            sum(t.get("no_internet_pct", 0) for t in scored_tracts) / total_tracts
+        )
+
+        total_population = sum(t.get("total_population", 0) for t in scored_tracts)
+        total_below_poverty = sum(
+            t.get("below_poverty_count", 0) for t in scored_tracts
+        )
+
+        return {
+            "total_tracts_analyzed": total_tracts,
+            "critical_need_tracts": critical_need,
+            "high_need_tracts": high_need,
+            "avg_poverty_rate": round(avg_poverty_rate, 2),
+            "avg_no_internet_pct": round(avg_no_internet, 2),
+            "total_population": total_population,
+            "total_below_poverty": total_below_poverty,
+            "top_10_tracts": scored_tracts[:10],
+>>>>>>> origin/feature/backend
         }

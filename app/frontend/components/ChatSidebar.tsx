@@ -4,6 +4,37 @@ import { useState, useRef, useEffect } from 'react';
 import type { ChatMessage, AgentStep, WebSocketMessage, DeploymentPlan } from '@/lib/types';
 
 const WEBSOCKET_URL = 'ws://localhost:8000/ws/chat';
+const STORAGE_KEY = 'atlas-chat-messages';
+
+const getInitialMessages = (): ChatMessage[] => {
+  if (typeof window === 'undefined') return getDefaultMessages();
+
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Convert timestamp strings back to Date objects
+      const messagesWithDates = parsed.map((msg: any) => ({
+        ...msg,
+        timestamp: new Date(msg.timestamp)
+      }));
+      return messagesWithDates.length > 0 ? messagesWithDates : getDefaultMessages();
+    }
+  } catch (error) {
+    console.error('Error loading chat messages:', error);
+  }
+
+  return getDefaultMessages();
+};
+
+const getDefaultMessages = (): ChatMessage[] => [
+  {
+    id: '1',
+    role: 'assistant',
+    content: "Hi! I'm your WiFi planning assistant powered by multi-agent AI. I analyze Census demographics, FCC broadband data, and civic assets to recommend optimal deployment sites. Ask me anything!",
+    timestamp: new Date()
+  }
+];
 
 export default function ChatSidebar({
   isOpen,
@@ -16,21 +47,15 @@ export default function ChatSidebar({
   cityName?: string;
   onRecommendationsReceived?: (plan: DeploymentPlan) => void;
 }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: "Hi! I'm your WiFi planning assistant powered by multi-agent AI. I analyze Census demographics, FCC broadband data, and civic assets to recommend optimal deployment sites. Ask me anything!",
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>(getInitialMessages);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [currentAgentSteps, setCurrentAgentSteps] = useState<AgentStep[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [typingStep, setTypingStep] = useState<AgentStep | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const suggestions = [
     "Where should we deploy WiFi for underserved students?",
@@ -45,7 +70,7 @@ export default function ChatSidebar({
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, currentAgentSteps]);
+  }, [messages, typingStep]);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -53,12 +78,36 @@ export default function ChatSidebar({
     }
   }, [isOpen]);
 
+  // Persist messages to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+      } catch (error) {
+        console.error('Error saving chat messages:', error);
+      }
+    }
+  }, [messages]);
+
   const connectWebSocket = (userMessage: string) => {
     const ws = new WebSocket(WEBSOCKET_URL);
     wsRef.current = ws;
+    const processingMessageId = `processing-${Date.now()}`;
 
     ws.onopen = () => {
       console.log('WebSocket connected');
+
+      // Create ONE processing message that will accumulate all steps
+      const thinkingMessage: ChatMessage = {
+        id: processingMessageId,
+        role: 'assistant',
+        content: '🤔 Analyzing your request...',
+        timestamp: new Date(),
+        type: 'processing',
+        agentSteps: []  // Initialize empty array for accumulation
+      };
+      setMessages(prev => [...prev, thinkingMessage]);
+
       // Send user message to backend
       ws.send(JSON.stringify({
         message: userMessage,
@@ -70,40 +119,49 @@ export default function ChatSidebar({
       const data: WebSocketMessage = JSON.parse(event.data);
 
       if (data.type === 'agent_step') {
-        // Update agent steps in real-time
-        setCurrentAgentSteps(prev => {
-          const newSteps = [...prev];
-          const existingIndex = newSteps.findIndex(s => s.agent === data.agent);
-
-          const agentStep: AgentStep = {
-            agent: data.agent || '',
-            action: data.action || '',
-            status: data.status || 'in_progress',
-            data: data.data
-          };
-
-          if (existingIndex >= 0) {
-            newSteps[existingIndex] = agentStep;
-          } else {
-            newSteps.push(agentStep);
-          }
-
-          return newSteps;
-        });
-      } else if (data.type === 'final_response') {
-        // Create assistant message with final response
-        const assistantMessage: ChatMessage = {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: data.explanation || 'Analysis complete.',
-          timestamp: new Date(),
-          type: 'final_response',
-          agentSteps: currentAgentSteps,
-          deploymentPlan: data.deployment_plan
+        const agentStep: AgentStep = {
+          agent: data.agent || '',
+          action: data.action || '',
+          status: data.status || 'in_progress',
+          data: data.data
         };
 
-        setMessages(prev => [...prev, assistantMessage]);
-        setCurrentAgentSteps([]);
+        // UPDATE the existing processing message by accumulating steps
+        setMessages(prev => prev.map(msg => {
+          if (msg.id === processingMessageId) {
+            const existingSteps = msg.agentSteps || [];
+            return {
+              ...msg,
+              agentSteps: [...existingSteps, agentStep],
+              content: `processing-${Date.now()}`,  // Change content to force re-render
+              timestamp: new Date()  // Update timestamp to force re-render
+            };
+          }
+          return msg;
+        }));
+
+        // Show typing indicator for current agent
+        setTypingStep({
+          agent: agentStep.agent,
+          action: agentStep.action,
+          status: agentStep.status
+        });
+      } else if (data.type === 'final_response') {
+        // Clear typing indicator
+        setTypingStep(null);
+
+        // Replace processing message with final response
+        setMessages(prev => prev.map(msg =>
+          msg.id === processingMessageId
+            ? {
+                ...msg,
+                content: data.explanation || 'Analysis complete.',
+                type: 'final_response',
+                deploymentPlan: data.deployment_plan
+              }
+            : msg
+        ));
+
         setIsProcessing(false);
 
         // Notify parent component of recommendations
@@ -113,16 +171,20 @@ export default function ChatSidebar({
 
         ws.close();
       } else if (data.type === 'error') {
-        const errorMessage: ChatMessage = {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: `⚠️ Error: ${data.message || 'An error occurred'}`,
-          timestamp: new Date(),
-          type: 'error'
-        };
+        // Clear typing indicator
+        setTypingStep(null);
 
-        setMessages(prev => [...prev, errorMessage]);
-        setCurrentAgentSteps([]);
+        // Replace processing message with error
+        setMessages(prev => prev.map(msg =>
+          msg.id === processingMessageId
+            ? {
+                ...msg,
+                content: `⚠️ Error: ${data.message || 'An error occurred'}`,
+                type: 'error'
+              }
+            : msg
+        ));
+
         setIsProcessing(false);
         ws.close();
       }
@@ -130,6 +192,8 @@ export default function ChatSidebar({
 
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
+      setTypingStep(null);
+
       const errorMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'assistant',
@@ -138,7 +202,6 @@ export default function ChatSidebar({
         type: 'error'
       };
       setMessages(prev => [...prev, errorMessage]);
-      setCurrentAgentSteps([]);
       setIsProcessing(false);
     };
 
@@ -164,7 +227,6 @@ export default function ChatSidebar({
     setInputValue('');
     setShowSuggestions(false);
     setIsProcessing(true);
-    setCurrentAgentSteps([]);
 
     // Connect to WebSocket and send message
     connectWebSocket(messageText);
@@ -177,14 +239,34 @@ export default function ChatSidebar({
     }
   };
 
+  const handleClearConversation = () => {
+    if (confirm('Are you sure you want to clear the conversation history?')) {
+      const defaultMessages = getDefaultMessages();
+      setMessages(defaultMessages);
+      setShowSuggestions(true);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+  };
+
   const getAgentIcon = (agentName: string): string => {
     if (agentName.includes('Query Parser')) return '🔍';
     if (agentName.includes('Census')) return '📊';
     if (agentName.includes('FCC')) return '📡';
     if (agentName.includes('Assets')) return '🏛️';
+    if (agentName.includes('Synthesis')) return '🧠';
     if (agentName.includes('Ranking')) return '⚖️';
     if (agentName.includes('Explainer')) return '✨';
     return '🤖';
+  };
+
+  const isOrchestratorThinking = (step: AgentStep): boolean => {
+    return step.agent.includes('Orchestrator') && step.status === 'completed';
+  };
+
+  const isProcessRunning = (step: AgentStep): boolean => {
+    return step.status === 'in_progress' && !step.agent.includes('Orchestrator');
   };
 
   return (
@@ -202,14 +284,26 @@ export default function ChatSidebar({
               <div className="w-2 h-2 rounded-full bg-civic-green animate-pulse" />
               <h2 className="text-lg font-semibold text-foreground">Multi-Agent AI Assistant</h2>
             </div>
-            <button
-              onClick={onClose}
-              className="p-1 rounded-lg hover:bg-surface-hover transition-colors text-muted hover:text-foreground"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleClearConversation}
+                className="p-1 rounded-lg hover:bg-surface-hover transition-colors text-muted hover:text-foreground"
+                title="Clear conversation"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+              <button
+                onClick={onClose}
+                className="p-1 rounded-lg hover:bg-surface-hover transition-colors text-muted hover:text-foreground"
+                title="Close chat"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
@@ -223,63 +317,101 @@ export default function ChatSidebar({
                   className={`max-w-[90%] rounded-2xl px-4 py-3 ${
                     message.role === 'user'
                       ? 'bg-civic-blue text-white'
+                      : message.type === 'agent_step'
+                      ? 'bg-surface-hover border border-border'
                       : 'bg-surface-hover text-foreground border border-border'
                   }`}
                 >
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-
-                  {/* Show agent steps if present */}
-                  {message.agentSteps && message.agentSteps.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
-                      <div className="text-xs font-semibold text-muted uppercase tracking-wider">
-                        Reasoning Process
-                      </div>
+                  {/* Processing Message - Shows all accumulated agent steps */}
+                  {message.type === 'processing' && message.agentSteps && (
+                    <div className="text-xs space-y-2">
+                      <div className="font-semibold text-muted mb-2">🤔 Analyzing your request...</div>
                       {message.agentSteps.map((step, idx) => (
-                        <div key={idx} className="text-xs text-accent flex items-start gap-2">
-                          <span className="flex-shrink-0">{getAgentIcon(step.agent)}</span>
-                          <div>
-                            <div className="font-semibold text-foreground">{step.agent}</div>
-                            <div>{step.action}</div>
+                        <div key={idx} className="flex items-start gap-2 pl-2 border-l-2 border-civic-blue/30">
+                          <span className="flex-shrink-0 mt-0.5">{getAgentIcon(step.agent)}</span>
+                          <div className="flex-1">
+                            <div className="font-semibold text-foreground flex items-center gap-2">
+                              {step.agent}
+                              {step.status === 'in_progress' && (
+                                <svg className="w-3 h-3 animate-spin text-civic-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                              )}
+                              {step.status === 'completed' && (
+                                <span className="text-civic-green">✓</span>
+                              )}
+                            </div>
+                            <div className="text-accent mt-0.5">{step.action}</div>
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
 
-                  <span className={`text-xs mt-2 block ${
-                    message.role === 'user' ? 'text-white/70' : 'text-muted'
-                  }`}>
-                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  {/* Agent Step Message */}
+                  {message.type === 'agent_step' && message.agentSteps?.[0] && (
+                    <div className="text-xs flex items-start gap-2">
+                      <span className="flex-shrink-0 mt-0.5">{getAgentIcon(message.agentSteps[0].agent)}</span>
+                      <div className="flex-1">
+                        <div className="font-semibold text-foreground flex items-center gap-2">
+                          {message.agentSteps[0].agent}
+                          {isProcessRunning(message.agentSteps[0]) && (
+                            <svg className="w-3 h-3 animate-spin text-civic-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          )}
+                          {message.agentSteps[0].status === 'completed' && !isOrchestratorThinking(message.agentSteps[0]) && (
+                            <span className="text-civic-green">✓</span>
+                          )}
+                        </div>
+                        <div className="text-accent mt-1">
+                          {message.content}
+                          {isOrchestratorThinking(message.agentSteps[0]) && (
+                            <span className="inline-flex ml-1">
+                              <span className="animate-[bounce_1s_infinite_0ms]">.</span>
+                              <span className="animate-[bounce_1s_infinite_200ms]">.</span>
+                              <span className="animate-[bounce_1s_infinite_400ms]">.</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Regular Message */}
+                  {message.type !== "agent_step" && message.type !== "processing" && (
+                    <>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+
+                      <span className={`text-xs mt-2 block ${
+                        message.role === 'user' ? 'text-white/70' : 'text-muted'
+                      }`}>
+                        {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
 
-            {/* Live Agent Steps */}
-            {isProcessing && currentAgentSteps.length > 0 && (
+            {/* Typing Indicator */}
+            {isProcessing && typingStep && (
               <div className="flex justify-start">
                 <div className="max-w-[90%] bg-surface-hover border border-border rounded-2xl px-4 py-3">
-                  <div className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
-                    Analyzing...
-                  </div>
-                  <div className="space-y-2">
-                    {currentAgentSteps.map((step, idx) => (
-                      <div key={idx} className="text-xs flex items-start gap-2">
-                        <span className="flex-shrink-0 mt-0.5">{getAgentIcon(step.agent)}</span>
-                        <div className="flex-1">
-                          <div className="font-semibold text-foreground flex items-center gap-2">
-                            {step.agent}
-                            {step.status === 'in_progress' && (
-                              <div className="w-1.5 h-1.5 bg-civic-blue rounded-full animate-pulse" />
-                            )}
-                            {step.status === 'completed' && (
-                              <span className="text-civic-green">✓</span>
-                            )}
-                          </div>
-                          <div className="text-accent">{step.action}</div>
-                        </div>
+                  <div className="text-xs flex items-start gap-2">
+                    <span className="flex-shrink-0 mt-0.5">{getAgentIcon(typingStep.agent)}</span>
+                    <div className="flex-1">
+                      <div className="font-semibold text-foreground">{typingStep.agent}</div>
+                      <div className="text-accent mt-1">
+                        <span className="inline-flex gap-0.5">
+                          <span className="animate-[bounce_1s_infinite_0ms]">.</span>
+                          <span className="animate-[bounce_1s_infinite_200ms]">.</span>
+                          <span className="animate-[bounce_1s_infinite_400ms]">.</span>
+                        </span>
                       </div>
-                    ))}
+                    </div>
                   </div>
                 </div>
               </div>

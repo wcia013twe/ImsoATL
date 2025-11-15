@@ -1,0 +1,3 @@
+{
+  "/dashboard/[city]/page": "app/dashboard/[city]/page.js"
+}

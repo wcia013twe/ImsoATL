@@ -1,1 +1,157 @@
+.csv
+*.csv
+.gpkg
+*.gpkg
+.next/dev/build/chunks/*
+.next/dev/logs/*
+.next/dev/types/*
+app/backend/__pycache__/
 .env
+.env
+.env.*
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+*.log
+*.pot
+*.pyc
+*.mypy_cache/
+*.pytest_cache/
+*.coverage
+*.egg-info/
+dist/
+build/
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+pnpm-lock.yaml
+.next/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.history/
+.cache/
+.turbo/
+coverage/
+*.swp
+*.swo
+*.bak
+*.tmp
+*.orig
+*.rej
+.env.local
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Claude
+.claude
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# Database
+*.db
+*.sqlite3
+*.sqlite
+
+# FastAPI / Uvicorn
+*.pid
+
+# Logs
+logs/
+*.log
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Data files (keep directory structure with .gitkeep)
+app/data/fcc/*
+app/data/census/*
+app/data/cache/*
+!app/data/fcc/.gitkeep
+!app/data/census/.gitkeep
+!app/data/cache/.gitkeep
+
+*.csv
+*.gpkg

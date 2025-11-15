@@ -5,7 +5,7 @@ Fetches demographic data from US Census Bureau API
 import httpx
 from typing import Dict, List, Optional
 from census import Census
-
+from us import states
 
 class CensusDataClient:
     """Client for fetching Census ACS (American Community Survey) data"""
