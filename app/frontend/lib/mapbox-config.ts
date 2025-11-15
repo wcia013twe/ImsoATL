@@ -4,7 +4,7 @@
  */
 
 export const MAPBOX_CONFIG = {
-  accessToken: process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '',
+  accessToken: process.env.NEXT_PUBLIC_MAPBOX_TOKEN || process.env.NEXT_PUBLIC_MAPBOX || '',
   defaultStyle: 'mapbox://styles/mapbox/light-v11',
   atlantaCenter: {
     lng: -84.388,
@@ -14,15 +14,15 @@ export const MAPBOX_CONFIG = {
 };
 
 export const MAP_LAYERS = {
-  // Atlanta city boundary - just outlines, no fill
+  // Atlanta city boundary
   atlantaBoundary: {
     id: 'atlanta-boundary',
     type: 'line' as const,
     source: 'atlanta-boundary',
     paint: {
       'line-color': '#2691FF',
-      'line-width': 1.5,
-      'line-opacity': 0.6,
+      'line-width': 3,
+      'line-opacity': 0.8,
     },
   },
 

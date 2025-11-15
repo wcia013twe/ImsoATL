@@ -12,6 +12,8 @@ Design Principles:
 """
 from typing import Dict, List, Optional, Tuple
 import logging
+from data_sources.atlanta_boundary import AtlantaBoundaryClient
+from data_sources.tract_centroids import TractCentroidClient
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,16 @@ class SynthesisAgent:
             'medium': 50,      # Phase 2 deployment
             'low': 0           # Future consideration
         }
+
+        # Initialize geospatial validation clients
+        try:
+            self.boundary_client = AtlantaBoundaryClient()
+            self.centroid_client = TractCentroidClient()
+            logger.info("✓ Geospatial validation clients initialized")
+        except Exception as e:
+            logger.warning(f"⚠️  Geospatial validation disabled: {e}")
+            self.boundary_client = None
+            self.centroid_client = None
 
     async def synthesize_recommendations(
         self,
@@ -76,9 +88,14 @@ class SynthesisAgent:
         unified_sites = self._merge_data_sources(census_data, fcc_data, asset_data)
         logger.info(f"Unified {len(unified_sites)} potential deployment sites")
 
+        # Step 1.5: Filter to only Atlanta city limits
+        logger.info("Step 1.5: Filtering sites to Atlanta city limits")
+        atlanta_sites = self._filter_to_atlanta(unified_sites)
+        logger.info(f"Filtered to {len(atlanta_sites)} sites within Atlanta (removed {len(unified_sites) - len(atlanta_sites)})")
+
         # Step 2: Calculate composite scores
         logger.info("Step 2: Calculating composite scores")
-        scored_sites = self._score_all_sites(unified_sites, weights)
+        scored_sites = self._score_all_sites(atlanta_sites, weights)
 
         # Step 3: Rank and categorize
         logger.info("Step 3: Ranking and categorizing sites")
@@ -439,6 +456,53 @@ class SynthesisAgent:
                 )
 
             site['justification'] = '; '.join(justification_parts) if justification_parts else 'Meets multiple deployment criteria'
+
+    def _filter_to_atlanta(self, sites: List[Dict]) -> List[Dict]:
+        """
+        Filter sites to only those within Atlanta city limits.
+
+        Uses point-in-polygon validation with census tract centroids.
+        If geospatial clients are not available, returns all sites.
+
+        Args:
+            sites: List of unified site dictionaries
+
+        Returns:
+            Filtered list containing only sites within Atlanta
+        """
+        if not self.boundary_client or not self.centroid_client:
+            logger.warning("Geospatial validation disabled - returning all sites")
+            return sites
+
+        atlanta_sites = []
+        skipped_count = 0
+
+        for site in sites:
+            tract_id = self._get_tract_id(site)
+
+            # Get tract centroid coordinates
+            centroid = self.centroid_client.get_centroid(tract_id)
+
+            if not centroid:
+                logger.debug(f"No centroid found for tract {tract_id}")
+                skipped_count += 1
+                continue
+
+            lat, lng = centroid
+
+            # Check if centroid is within Atlanta boundary
+            if self.boundary_client.is_point_in_atlanta(lat, lng):
+                # Add coordinates to site data
+                site['lat'] = lat
+                site['lng'] = lng
+                atlanta_sites.append(site)
+            else:
+                logger.debug(f"Tract {tract_id} outside Atlanta boundary")
+
+        if skipped_count > 0:
+            logger.info(f"⚠️  Skipped {skipped_count} sites with missing centroids")
+
+        return atlanta_sites
 
     # Helper methods
 

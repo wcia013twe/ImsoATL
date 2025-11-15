@@ -4,7 +4,7 @@
 
 export type MessageRole = 'user' | 'assistant';
 
-export type MessageType = 'agent_step' | 'final_response' | 'error';
+export type MessageType = 'agent_step' | 'final_response' | 'error' | 'processing';
 
 export type AgentStepStatus = 'in_progress' | 'completed' | 'error' | 'typing';
 

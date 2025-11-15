@@ -1,0 +1,619 @@
+[00:00:00.627] Server  LOG      ✓ Ready in 432ms
+[00:00:03.967] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:30.304] Server  ERROR    ⨯ ./app/dashboard/[city]/page.tsx:4:1
+Module not found: Can't resolve '@/components/DashboardHeader'
+  2 |
+  3 | import { useEffect, useState, useRef } from 'react';
+> 4 | import DashboardHeader from '@/components/DashboardHeader';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 | import ChatSidebar from '@/components/ChatSidebar';
+  6 | import PrioritySliders from '@/components/PrioritySliders';
+  7 | import InteractiveMap from '@/components/InteractiveMap';
+
+Import map: aliased to relative './components/DashboardHeader' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+
+./app/dashboard/[city]/page.tsx:7:1
+Module not found: Can't resolve '@/components/InteractiveMap'
+   5 | import ChatSidebar from '@/components/ChatSidebar';
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+>  7 | import InteractiveMap from '@/components/InteractiveMap';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+
+Import map: aliased to relative './components/InteractiveMap' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+
+./app/dashboard/[city]/page.tsx:8:1
+Module not found: Can't resolve '@/components/RecommendationsSidebar'
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+   7 | import InteractiveMap from '@/components/InteractiveMap';
+>  8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+  11 |
+
+Import map: aliased to relative './components/RecommendationsSidebar' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:00:30.431] Browser ERROR   ./app/dashboard/[city]/page.tsx:4:1
+Module not found: Can't resolve '@/components/DashboardHeader'
+  2 |
+  3 | import { useEffect, useState, useRef } from 'react';
+> 4 | import DashboardHeader from '@/components/DashboardHeader';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 | import ChatSidebar from '@/components/ChatSidebar';
+  6 | import PrioritySliders from '@/components/PrioritySliders';
+  7 | import InteractiveMap from '@/components/InteractiveMap';
+
+Import map: aliased to relative './components/DashboardHeader' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:30.431] Browser ERROR   ./app/dashboard/[city]/page.tsx:7:1
+Module not found: Can't resolve '@/components/InteractiveMap'
+   5 | import ChatSidebar from '@/components/ChatSidebar';
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+>  7 | import InteractiveMap from '@/components/InteractiveMap';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+
+Import map: aliased to relative './components/InteractiveMap' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:30.431] Browser ERROR   ./app/dashboard/[city]/page.tsx:8:1
+Module not found: Can't resolve '@/components/RecommendationsSidebar'
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+   7 | import InteractiveMap from '@/components/InteractiveMap';
+>  8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+  11 |
+
+Import map: aliased to relative './components/RecommendationsSidebar' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:30.890] Browser ERROR   ./app/dashboard/[city]/page.tsx:4:1
+Module not found: Can't resolve '@/components/DashboardHeader'
+  2 |
+  3 | import { useEffect, useState, useRef } from 'react';
+> 4 | import DashboardHeader from '@/components/DashboardHeader';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 | import ChatSidebar from '@/components/ChatSidebar';
+  6 | import PrioritySliders from '@/components/PrioritySliders';
+  7 | import InteractiveMap from '@/components/InteractiveMap';
+
+Import map: aliased to relative './components/DashboardHeader' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:30.890] Browser ERROR   ./app/dashboard/[city]/page.tsx:7:1
+Module not found: Can't resolve '@/components/InteractiveMap'
+   5 | import ChatSidebar from '@/components/ChatSidebar';
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+>  7 | import InteractiveMap from '@/components/InteractiveMap';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+
+Import map: aliased to relative './components/InteractiveMap' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:30.890] Browser ERROR   ./app/dashboard/[city]/page.tsx:8:1
+Module not found: Can't resolve '@/components/RecommendationsSidebar'
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+   7 | import InteractiveMap from '@/components/InteractiveMap';
+>  8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+  11 |
+
+Import map: aliased to relative './components/RecommendationsSidebar' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:30.890] Browser ERROR   ./app/dashboard/[city]/page.tsx:4:1
+Module not found: Can't resolve '@/components/DashboardHeader'
+  2 |
+  3 | import { useEffect, useState, useRef } from 'react';
+> 4 | import DashboardHeader from '@/components/DashboardHeader';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 | import ChatSidebar from '@/components/ChatSidebar';
+  6 | import PrioritySliders from '@/components/PrioritySliders';
+  7 | import InteractiveMap from '@/components/InteractiveMap';
+
+Import map: aliased to relative './components/DashboardHeader' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:30.890] Browser ERROR   ./app/dashboard/[city]/page.tsx:7:1
+Module not found: Can't resolve '@/components/InteractiveMap'
+   5 | import ChatSidebar from '@/components/ChatSidebar';
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+>  7 | import InteractiveMap from '@/components/InteractiveMap';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+
+Import map: aliased to relative './components/InteractiveMap' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:30.890] Browser ERROR   ./app/dashboard/[city]/page.tsx:8:1
+Module not found: Can't resolve '@/components/RecommendationsSidebar'
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+   7 | import InteractiveMap from '@/components/InteractiveMap';
+>  8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+  11 |
+
+Import map: aliased to relative './components/RecommendationsSidebar' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:30.892] Browser ERROR   ./app/dashboard/[city]/page.tsx:4:1
+Module not found: Can't resolve '@/components/DashboardHeader'
+  2 |
+  3 | import { useEffect, useState, useRef } from 'react';
+> 4 | import DashboardHeader from '@/components/DashboardHeader';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 | import ChatSidebar from '@/components/ChatSidebar';
+  6 | import PrioritySliders from '@/components/PrioritySliders';
+  7 | import InteractiveMap from '@/components/InteractiveMap';
+
+Import map: aliased to relative './components/DashboardHeader' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:30.892] Browser ERROR   ./app/dashboard/[city]/page.tsx:7:1
+Module not found: Can't resolve '@/components/InteractiveMap'
+   5 | import ChatSidebar from '@/components/ChatSidebar';
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+>  7 | import InteractiveMap from '@/components/InteractiveMap';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+
+Import map: aliased to relative './components/InteractiveMap' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:30.892] Browser ERROR   ./app/dashboard/[city]/page.tsx:8:1
+Module not found: Can't resolve '@/components/RecommendationsSidebar'
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+   7 | import InteractiveMap from '@/components/InteractiveMap';
+>  8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+  11 |
+
+Import map: aliased to relative './components/RecommendationsSidebar' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:30.917] Server  ERROR    ⨯ ./app/dashboard/[city]/page.tsx:4:1
+Module not found: Can't resolve '@/components/DashboardHeader'
+  2 |
+  3 | import { useEffect, useState, useRef } from 'react';
+> 4 | import DashboardHeader from '@/components/DashboardHeader';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 | import ChatSidebar from '@/components/ChatSidebar';
+  6 | import PrioritySliders from '@/components/PrioritySliders';
+  7 | import InteractiveMap from '@/components/InteractiveMap';
+
+Import map: aliased to relative './components/DashboardHeader' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+
+./app/dashboard/[city]/page.tsx:7:1
+Module not found: Can't resolve '@/components/InteractiveMap'
+   5 | import ChatSidebar from '@/components/ChatSidebar';
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+>  7 | import InteractiveMap from '@/components/InteractiveMap';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+
+Import map: aliased to relative './components/InteractiveMap' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+
+./app/dashboard/[city]/page.tsx:8:1
+Module not found: Can't resolve '@/components/RecommendationsSidebar'
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+   7 | import InteractiveMap from '@/components/InteractiveMap';
+>  8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+  11 |
+
+Import map: aliased to relative './components/RecommendationsSidebar' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:00:31.116] Browser ERROR   uncaughtError: Error: ./app/dashboard/[city]/page.tsx:4:1
+Module not found: Can't resolve '@/components/DashboardHeader'
+  2 |
+  3 | import { useEffect, useState, useRef } from 'react';
+> 4 | import DashboardHeader from '@/components/DashboardHeader';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 | import ChatSidebar from '@/components/ChatSidebar';
+  6 | import PrioritySliders from '@/components/PrioritySliders';
+  7 | import InteractiveMap from '@/components/InteractiveMap';
+
+Import map: aliased to relative './components/DashboardHeader' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:00:31.308] Browser ERROR   ./app/dashboard/[city]/page.tsx:4:1
+Module not found: Can't resolve '@/components/DashboardHeader'
+  2 |
+  3 | import { useEffect, useState, useRef } from 'react';
+> 4 | import DashboardHeader from '@/components/DashboardHeader';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 | import ChatSidebar from '@/components/ChatSidebar';
+  6 | import PrioritySliders from '@/components/PrioritySliders';
+  7 | import InteractiveMap from '@/components/InteractiveMap';
+
+Import map: aliased to relative './components/DashboardHeader' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:31.308] Browser ERROR   ./app/dashboard/[city]/page.tsx:7:1
+Module not found: Can't resolve '@/components/InteractiveMap'
+   5 | import ChatSidebar from '@/components/ChatSidebar';
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+>  7 | import InteractiveMap from '@/components/InteractiveMap';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+
+Import map: aliased to relative './components/InteractiveMap' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:31.308] Browser ERROR   ./app/dashboard/[city]/page.tsx:8:1
+Module not found: Can't resolve '@/components/RecommendationsSidebar'
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+   7 | import InteractiveMap from '@/components/InteractiveMap';
+>  8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+  11 |
+
+Import map: aliased to relative './components/RecommendationsSidebar' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:31.308] Browser ERROR   ./app/dashboard/[city]/page.tsx:4:1
+Module not found: Can't resolve '@/components/DashboardHeader'
+  2 |
+  3 | import { useEffect, useState, useRef } from 'react';
+> 4 | import DashboardHeader from '@/components/DashboardHeader';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 | import ChatSidebar from '@/components/ChatSidebar';
+  6 | import PrioritySliders from '@/components/PrioritySliders';
+  7 | import InteractiveMap from '@/components/InteractiveMap';
+
+Import map: aliased to relative './components/DashboardHeader' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:31.308] Browser ERROR   ./app/dashboard/[city]/page.tsx:7:1
+Module not found: Can't resolve '@/components/InteractiveMap'
+   5 | import ChatSidebar from '@/components/ChatSidebar';
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+>  7 | import InteractiveMap from '@/components/InteractiveMap';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+
+Import map: aliased to relative './components/InteractiveMap' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:31.308] Browser ERROR   ./app/dashboard/[city]/page.tsx:8:1
+Module not found: Can't resolve '@/components/RecommendationsSidebar'
+   6 | import PrioritySliders from '@/components/PrioritySliders';
+   7 | import InteractiveMap from '@/components/InteractiveMap';
+>  8 | import RecommendationsSidebar from '@/components/RecommendationsSidebar';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import Footer from '@/components/Footer';
+  10 | import type { DeploymentPlan } from '@/lib/types';
+  11 |
+
+Import map: aliased to relative './components/RecommendationsSidebar' inside of [project]/
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/[city]/page.tsx [Client Component Browser]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/[city]/page.tsx [Client Component SSR]
+    ./app/dashboard/[city]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:02:11.890] Server  LOG      ✓ Compiled in 95ms
+[00:02:12.782] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:02:13.507] Browser LOG     Loaded pre-generated Atlanta boundary
+[00:02:13.507] Browser LOG     Fitting map to Atlanta bounds: [[-84.550854,33.6479187],[-84.28956,33.886823]]
+[00:02:13.507] Browser LOG     Atlanta boundary displayed successfully
+[00:06:03.434] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:06:04.066] Browser LOG     Loaded pre-generated Atlanta boundary
+[00:06:04.066] Browser LOG     Fitting map to Atlanta bounds: [[-84.550854,33.6479187],[-84.28956,33.886823]]
+[00:06:04.066] Browser LOG     Atlanta boundary displayed successfully
+[00:06:08.084] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:07:09.422] Server  LOG      ✓ Compiled in 255ms
+[00:08:14.365] Server  LOG      ✓ Compiled in 118ms
+[00:08:34.356] Server  LOG      ✓ Compiled in 110ms
+[00:08:43.524] Server  LOG      ✓ Compiled in 111ms
+[00:10:06.895] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:10:12.719] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:15:13.939] Server  LOG      ✓ Compiled in 77ms
+[00:16:29.235] Server  LOG      ✓ Compiled in 159ms
+[00:16:34.725] Server  LOG      ✓ Compiled in 22ms
+[00:17:08.181] Server  LOG      ✓ Compiled in 136ms
+[00:17:16.821] Server  LOG      ✓ Compiled in 217ms
+[00:17:32.297] Server  LOG      ✓ Compiled in 77ms
+[00:17:43.945] Server  LOG      ✓ Compiled in 85ms
+[00:17:57.785] Server  LOG      ✓ Compiled in 69ms
+[00:19:19.164] Server  LOG      ✓ Compiled in 70ms
+[00:19:31.006] Server  LOG      ✓ Compiled in 72ms
+[00:20:17.697] Server  LOG      ✓ Compiled in 72ms
+[00:20:30.006] Server  LOG      ✓ Compiled in 106ms
+[00:21:44.755] Server  LOG      ✓ Compiled in 181ms
+[00:35:45.167] Server  LOG      ✓ Compiled in 114ms
+[00:37:17.416] Server  LOG      ✓ Compiled in 69ms
+[00:37:41.566] Server  LOG      ✓ Compiled in 96ms
+[00:37:53.784] Browser WARN    This page appears to be missing CSS declarations for Mapbox GL JS, which may cause the map to display incorrectly. Please ensure your page includes mapbox-gl.css, as described in https://www.mapbox.com/mapbox-gl-js/api/.
+[00:37:54.324] Browser LOG     Loaded pre-generated Atlanta boundary
+[00:37:54.324] Browser LOG     Fitting map to Atlanta bounds: [[-84.550854,33.6479187],[-84.28956,33.886823]]
+[00:37:54.324] Browser LOG     Atlanta boundary displayed successfully
+[00:38:07.799] Server  LOG      ✓ Compiled in 41ms
+[00:38:16.228] Server  LOG      ✓ Compiled in 72ms
+[00:38:19.529] Server  LOG      ✓ Compiled in 14ms
+[00:38:22.109] Server  LOG      ✓ Compiled in 37ms
+[00:38:25.449] Server  LOG      ✓ Compiled in 18ms
+[00:38:27.422] Server  LOG      ✓ Compiled in 58ms

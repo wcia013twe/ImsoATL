@@ -92,9 +92,22 @@ export default function ChatSidebar({
   const connectWebSocket = (userMessage: string) => {
     const ws = new WebSocket(WEBSOCKET_URL);
     wsRef.current = ws;
+    const processingMessageId = `processing-${Date.now()}`;
 
     ws.onopen = () => {
       console.log('WebSocket connected');
+
+      // Create ONE processing message that will accumulate all steps
+      const thinkingMessage: ChatMessage = {
+        id: processingMessageId,
+        role: 'assistant',
+        content: '🤔 Analyzing your request...',
+        timestamp: new Date(),
+        type: 'processing',
+        agentSteps: []  // Initialize empty array for accumulation
+      };
+      setMessages(prev => [...prev, thinkingMessage]);
+
       // Send user message to backend
       ws.send(JSON.stringify({
         message: userMessage,
@@ -113,52 +126,42 @@ export default function ChatSidebar({
           data: data.data
         };
 
-        // Clear any existing typing timeout
-        if (typingTimeoutRef.current) {
-          clearTimeout(typingTimeoutRef.current);
-        }
+        // UPDATE the existing processing message by accumulating steps
+        setMessages(prev => prev.map(msg => {
+          if (msg.id === processingMessageId) {
+            const existingSteps = msg.agentSteps || [];
+            return {
+              ...msg,
+              agentSteps: [...existingSteps, agentStep],
+              content: `processing-${Date.now()}`,  // Change content to force re-render
+              timestamp: new Date()  // Update timestamp to force re-render
+            };
+          }
+          return msg;
+        }));
 
-        // Show typing indicator first
+        // Show typing indicator for current agent
         setTypingStep({
           agent: agentStep.agent,
-          action: '',
-          status: 'typing'
+          action: agentStep.action,
+          status: agentStep.status
         });
-
-        // After a brief delay, create a chat message bubble for this agent step
-        typingTimeoutRef.current = setTimeout(() => {
-          setTypingStep(null);
-
-          // Create a new chat message for this agent step
-          const agentMessage: ChatMessage = {
-            id: `${Date.now()}-${agentStep.agent}`,
-            role: 'assistant',
-            content: agentStep.action,
-            timestamp: new Date(),
-            type: 'agent_step',
-            agentSteps: [agentStep]
-          };
-
-          setMessages(prev => [...prev, agentMessage]);
-        }, 800); // 800ms typing delay
       } else if (data.type === 'final_response') {
         // Clear typing indicator
-        if (typingTimeoutRef.current) {
-          clearTimeout(typingTimeoutRef.current);
-        }
         setTypingStep(null);
 
-        // Create assistant message with final response
-        const assistantMessage: ChatMessage = {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: data.explanation || 'Analysis complete.',
-          timestamp: new Date(),
-          type: 'final_response',
-          deploymentPlan: data.deployment_plan
-        };
+        // Replace processing message with final response
+        setMessages(prev => prev.map(msg =>
+          msg.id === processingMessageId
+            ? {
+                ...msg,
+                content: data.explanation || 'Analysis complete.',
+                type: 'final_response',
+                deploymentPlan: data.deployment_plan
+              }
+            : msg
+        ));
 
-        setMessages(prev => [...prev, assistantMessage]);
         setIsProcessing(false);
 
         // Notify parent component of recommendations
@@ -169,20 +172,19 @@ export default function ChatSidebar({
         ws.close();
       } else if (data.type === 'error') {
         // Clear typing indicator
-        if (typingTimeoutRef.current) {
-          clearTimeout(typingTimeoutRef.current);
-        }
         setTypingStep(null);
 
-        const errorMessage: ChatMessage = {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: `⚠️ Error: ${data.message || 'An error occurred'}`,
-          timestamp: new Date(),
-          type: 'error'
-        };
+        // Replace processing message with error
+        setMessages(prev => prev.map(msg =>
+          msg.id === processingMessageId
+            ? {
+                ...msg,
+                content: `⚠️ Error: ${data.message || 'An error occurred'}`,
+                type: 'error'
+              }
+            : msg
+        ));
 
-        setMessages(prev => [...prev, errorMessage]);
         setIsProcessing(false);
         ws.close();
       }
@@ -190,11 +192,6 @@ export default function ChatSidebar({
 
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
-
-      // Clear typing indicator
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
       setTypingStep(null);
 
       const errorMessage: ChatMessage = {
@@ -325,6 +322,33 @@ export default function ChatSidebar({
                       : 'bg-surface-hover text-foreground border border-border'
                   }`}
                 >
+                  {/* Processing Message - Shows all accumulated agent steps */}
+                  {message.type === 'processing' && message.agentSteps && (
+                    <div className="text-xs space-y-2">
+                      <div className="font-semibold text-muted mb-2">🤔 Analyzing your request...</div>
+                      {message.agentSteps.map((step, idx) => (
+                        <div key={idx} className="flex items-start gap-2 pl-2 border-l-2 border-civic-blue/30">
+                          <span className="flex-shrink-0 mt-0.5">{getAgentIcon(step.agent)}</span>
+                          <div className="flex-1">
+                            <div className="font-semibold text-foreground flex items-center gap-2">
+                              {step.agent}
+                              {step.status === 'in_progress' && (
+                                <svg className="w-3 h-3 animate-spin text-civic-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                              )}
+                              {step.status === 'completed' && (
+                                <span className="text-civic-green">✓</span>
+                              )}
+                            </div>
+                            <div className="text-accent mt-0.5">{step.action}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Agent Step Message */}
                   {message.type === 'agent_step' && message.agentSteps?.[0] && (
                     <div className="text-xs flex items-start gap-2">
@@ -357,7 +381,7 @@ export default function ChatSidebar({
                   )}
 
                   {/* Regular Message */}
-                  {message.type !== 'agent_step' && (
+                  {message.type !== "agent_step" && message.type !== "processing" && (
                     <>
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
 

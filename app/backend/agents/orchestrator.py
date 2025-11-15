@@ -301,39 +301,63 @@ class AgentOrchestrator:
             yield {
                 "type": "agent_step",
                 "agent": "🤖 Orchestrator",
-                "action": f"Coordinating {len(reasoning_steps)} specialized agents to answer your question",
+                "action": "Executing comprehensive data pipeline: Census → FCC → Assets → Synthesis",
                 "status": "in_progress"
             }
 
             # Reset pipeline data for this query
             self.pipeline_data = {}
 
-            # Dynamic agent execution based on reasoning steps
-            agent_map = {
-                "Census Data Agent": lambda: self.execute_census_agent(state_fips),
-                "FCC Data Agent": lambda: self.execute_fcc_agent(state_fips),
-                "Civic Assets Agent": lambda: self.execute_assets_agent(),
-                "Synthesis Agent": lambda: self.execute_synthesis_agent(),
-                "Ranking Agent": lambda: self.execute_ranking_agent(),  # Legacy fallback
+            # OPTION 1: Always run all 4 agents for consistent, comprehensive analysis
+            # This ensures all data sources are available for any query type
+
+            # Step 2: Execute Census Data Agent
+            logger.info("STEP 2: Executing Census Data Agent")
+            async for update in self.execute_census_agent(state_fips):
+                yield update
+
+            yield {
+                "type": "agent_step",
+                "agent": "🤖 Orchestrator",
+                "action": "Census analysis complete. Moving to broadband coverage analysis...",
+                "status": "in_progress"
             }
 
-            # Execute each agent in the reasoning plan
-            for step in reasoning_steps:
-                agent_name = step.get('agent', '')
+            # Step 3: Execute FCC Data Agent
+            logger.info("STEP 3: Executing FCC Data Agent")
+            async for update in self.execute_fcc_agent(state_fips):
+                yield update
 
-                # Find matching agent executor
-                executor = None
-                for key, func in agent_map.items():
-                    if key in agent_name:
-                        executor = func
-                        break
+            yield {
+                "type": "agent_step",
+                "agent": "🤖 Orchestrator",
+                "action": "Coverage analysis complete. Locating civic anchor sites...",
+                "status": "in_progress"
+            }
 
-                if executor:
-                    # Execute the agent and yield all its updates
-                    async for update in executor():
-                        yield update
-                else:
-                    logger.warning(f"No executor found for agent: {agent_name}")
+            # Step 4: Execute Civic Assets Agent
+            logger.info("STEP 4: Executing Civic Assets Agent")
+            async for update in self.execute_assets_agent():
+                yield update
+
+            yield {
+                "type": "agent_step",
+                "agent": "🤖 Orchestrator",
+                "action": "Asset mapping complete. Synthesizing recommendations...",
+                "status": "in_progress"
+            }
+
+            # Step 5: Execute Synthesis Agent
+            logger.info("STEP 5: Executing Synthesis Agent")
+            async for update in self.execute_synthesis_agent():
+                yield update
+
+            yield {
+                "type": "agent_step",
+                "agent": "🤖 Orchestrator",
+                "action": "Data synthesis complete. Preparing final explanation...",
+                "status": "completed"
+            }
 
             # Generate explanation if we have deployment plan
             deployment_plan = self.pipeline_data.get('deployment_plan')
