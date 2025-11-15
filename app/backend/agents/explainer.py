@@ -188,9 +188,21 @@ A user asked: "{user_query}"
 Identify what this user is trying to accomplish and break it into logical analysis steps.
 
 Return ONLY a JSON array of steps, where each step has:
-- "agent": which specialized agent handles this (Census Data Agent, FCC Data Agent, Civic Assets Agent, or Ranking Agent)
+- "agent": which specialized agent handles this
 - "action": what the agent will do
 - "rationale": why this step is needed
+
+Available agents:
+1. Census Data Agent - Fetches poverty, internet access, student population data
+2. FCC Data Agent - Analyzes broadband coverage gaps
+3. Civic Assets Agent - Locates libraries, community centers, schools, transit
+4. Synthesis Agent - Combines all data sources and generates prioritized recommendations
+
+IMPORTANT:
+- If the query asks for recommendations, deployment sites, or prioritized locations,
+  you MUST include "Synthesis Agent" as the FINAL step (after data agents)
+- Synthesis Agent should ONLY appear after Census, FCC, and/or Assets agents have run
+- Do NOT use "Ranking Agent" - use "Synthesis Agent" instead
 
 Example format:
 [
@@ -198,36 +210,41 @@ Example format:
     "agent": "Census Data Agent",
     "action": "Fetch poverty and internet access data for Georgia",
     "rationale": "Identify communities with highest need based on socioeconomic factors"
+  }},
+  {{
+    "agent": "Synthesis Agent",
+    "action": "Combine Census, FCC, and Asset data into prioritized deployment recommendations",
+    "rationale": "Generate actionable WiFi site recommendations with justifications"
   }}
 ]
 
-Return 3-4 steps maximum. Return ONLY valid JSON, no other text."""
+Return 3-5 steps maximum. Return ONLY valid JSON, no other text."""
 
         response = self.model.generate_content(prompt)
         try:
             steps = json.loads(response.text.strip())
             return steps
         except json.JSONDecodeError:
-            # Fallback if JSON parsing fails
+            # Fallback if JSON parsing fails - default full pipeline
             return [
                 {
                     "agent": "Census Data Agent",
-                    "action": "Analyze demographic data",
-                    "rationale": "Identify high-need communities"
+                    "action": "Analyze demographic data for Georgia",
+                    "rationale": "Identify high-need communities based on poverty and internet access"
                 },
                 {
                     "agent": "FCC Data Agent",
-                    "action": "Check broadband coverage",
+                    "action": "Analyze broadband coverage gaps",
                     "rationale": "Find areas with connectivity gaps"
                 },
                 {
                     "agent": "Civic Assets Agent",
-                    "action": "Locate potential anchor sites",
-                    "rationale": "Identify existing infrastructure"
+                    "action": "Locate civic anchor sites (libraries, centers, transit)",
+                    "rationale": "Identify existing infrastructure for deployment"
                 },
                 {
-                    "agent": "Ranking Agent",
-                    "action": "Synthesize data and generate recommendations",
-                    "rationale": "Prioritize sites by impact potential"
+                    "agent": "Synthesis Agent",
+                    "action": "Combine all data sources into prioritized deployment plan",
+                    "rationale": "Generate actionable recommendations with scoring and phasing"
                 }
             ]

@@ -50,11 +50,12 @@ export default function ChatSidebar({
   const [messages, setMessages] = useState<ChatMessage[]>(getInitialMessages);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [currentAgentSteps, setCurrentAgentSteps] = useState<AgentStep[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [typingStep, setTypingStep] = useState<AgentStep | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const suggestions = [
     "Where should we deploy WiFi for underserved students?",
@@ -69,7 +70,7 @@ export default function ChatSidebar({
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, currentAgentSteps]);
+  }, [messages, typingStep]);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -105,27 +106,48 @@ export default function ChatSidebar({
       const data: WebSocketMessage = JSON.parse(event.data);
 
       if (data.type === 'agent_step') {
-        // Update agent steps in real-time
-        setCurrentAgentSteps(prev => {
-          const newSteps = [...prev];
-          const existingIndex = newSteps.findIndex(s => s.agent === data.agent);
+        const agentStep: AgentStep = {
+          agent: data.agent || '',
+          action: data.action || '',
+          status: data.status || 'in_progress',
+          data: data.data
+        };
 
-          const agentStep: AgentStep = {
-            agent: data.agent || '',
-            action: data.action || '',
-            status: data.status || 'in_progress',
-            data: data.data
+        // Clear any existing typing timeout
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+
+        // Show typing indicator first
+        setTypingStep({
+          agent: agentStep.agent,
+          action: '',
+          status: 'typing'
+        });
+
+        // After a brief delay, create a chat message bubble for this agent step
+        typingTimeoutRef.current = setTimeout(() => {
+          setTypingStep(null);
+
+          // Create a new chat message for this agent step
+          const agentMessage: ChatMessage = {
+            id: `${Date.now()}-${agentStep.agent}`,
+            role: 'assistant',
+            content: agentStep.action,
+            timestamp: new Date(),
+            type: 'agent_step',
+            agentSteps: [agentStep]
           };
 
-          if (existingIndex >= 0) {
-            newSteps[existingIndex] = agentStep;
-          } else {
-            newSteps.push(agentStep);
-          }
-
-          return newSteps;
-        });
+          setMessages(prev => [...prev, agentMessage]);
+        }, 800); // 800ms typing delay
       } else if (data.type === 'final_response') {
+        // Clear typing indicator
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+        setTypingStep(null);
+
         // Create assistant message with final response
         const assistantMessage: ChatMessage = {
           id: Date.now().toString(),
@@ -133,12 +155,10 @@ export default function ChatSidebar({
           content: data.explanation || 'Analysis complete.',
           timestamp: new Date(),
           type: 'final_response',
-          agentSteps: currentAgentSteps,
           deploymentPlan: data.deployment_plan
         };
 
         setMessages(prev => [...prev, assistantMessage]);
-        setCurrentAgentSteps([]);
         setIsProcessing(false);
 
         // Notify parent component of recommendations
@@ -148,6 +168,12 @@ export default function ChatSidebar({
 
         ws.close();
       } else if (data.type === 'error') {
+        // Clear typing indicator
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+        setTypingStep(null);
+
         const errorMessage: ChatMessage = {
           id: Date.now().toString(),
           role: 'assistant',
@@ -157,7 +183,6 @@ export default function ChatSidebar({
         };
 
         setMessages(prev => [...prev, errorMessage]);
-        setCurrentAgentSteps([]);
         setIsProcessing(false);
         ws.close();
       }
@@ -165,6 +190,13 @@ export default function ChatSidebar({
 
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
+
+      // Clear typing indicator
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      setTypingStep(null);
+
       const errorMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'assistant',
@@ -173,7 +205,6 @@ export default function ChatSidebar({
         type: 'error'
       };
       setMessages(prev => [...prev, errorMessage]);
-      setCurrentAgentSteps([]);
       setIsProcessing(false);
     };
 
@@ -199,7 +230,6 @@ export default function ChatSidebar({
     setInputValue('');
     setShowSuggestions(false);
     setIsProcessing(true);
-    setCurrentAgentSteps([]);
 
     // Connect to WebSocket and send message
     connectWebSocket(messageText);
@@ -216,7 +246,6 @@ export default function ChatSidebar({
     if (confirm('Are you sure you want to clear the conversation history?')) {
       const defaultMessages = getDefaultMessages();
       setMessages(defaultMessages);
-      setCurrentAgentSteps([]);
       setShowSuggestions(true);
       if (typeof window !== 'undefined') {
         localStorage.removeItem(STORAGE_KEY);
@@ -229,6 +258,7 @@ export default function ChatSidebar({
     if (agentName.includes('Census')) return '📊';
     if (agentName.includes('FCC')) return '📡';
     if (agentName.includes('Assets')) return '🏛️';
+    if (agentName.includes('Synthesis')) return '🧠';
     if (agentName.includes('Ranking')) return '⚖️';
     if (agentName.includes('Explainer')) return '✨';
     return '🤖';
@@ -290,75 +320,77 @@ export default function ChatSidebar({
                   className={`max-w-[90%] rounded-2xl px-4 py-3 ${
                     message.role === 'user'
                       ? 'bg-civic-blue text-white'
+                      : message.type === 'agent_step'
+                      ? 'bg-surface-hover border border-border'
                       : 'bg-surface-hover text-foreground border border-border'
                   }`}
                 >
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-
-                  {/* Show agent steps if present */}
-                  {message.agentSteps && message.agentSteps.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
-                      <div className="text-xs font-semibold text-muted uppercase tracking-wider">
-                        Reasoning Process
-                      </div>
-                      {message.agentSteps.map((step, idx) => (
-                        <div key={idx} className="text-xs text-accent flex items-start gap-2">
-                          <span className="flex-shrink-0">{getAgentIcon(step.agent)}</span>
-                          <div>
-                            <div className="font-semibold text-foreground">{step.agent}</div>
-                            <div>{step.action}</div>
-                          </div>
+                  {/* Agent Step Message */}
+                  {message.type === 'agent_step' && message.agentSteps?.[0] && (
+                    <div className="text-xs flex items-start gap-2">
+                      <span className="flex-shrink-0 mt-0.5">{getAgentIcon(message.agentSteps[0].agent)}</span>
+                      <div className="flex-1">
+                        <div className="font-semibold text-foreground flex items-center gap-2">
+                          {message.agentSteps[0].agent}
+                          {isProcessRunning(message.agentSteps[0]) && (
+                            <svg className="w-3 h-3 animate-spin text-civic-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          )}
+                          {message.agentSteps[0].status === 'completed' && !isOrchestratorThinking(message.agentSteps[0]) && (
+                            <span className="text-civic-green">✓</span>
+                          )}
                         </div>
-                      ))}
+                        <div className="text-accent mt-1">
+                          {message.content}
+                          {isOrchestratorThinking(message.agentSteps[0]) && (
+                            <span className="inline-flex ml-1">
+                              <span className="animate-[bounce_1s_infinite_0ms]">.</span>
+                              <span className="animate-[bounce_1s_infinite_200ms]">.</span>
+                              <span className="animate-[bounce_1s_infinite_400ms]">.</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
 
-                  <span className={`text-xs mt-2 block ${
-                    message.role === 'user' ? 'text-white/70' : 'text-muted'
-                  }`}>
-                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  {/* Regular Message */}
+                  {message.type !== 'agent_step' && (
+                    <>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+
+                      <span className={`text-xs mt-2 block ${
+                        message.role === 'user' ? 'text-white/70' : 'text-muted'
+                      }`}>
+                        {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
 
-            {/* Live Agent Steps - Displayed as individual messages */}
-            {isProcessing && currentAgentSteps.length > 0 && (
-              <>
-                {currentAgentSteps.map((step, idx) => (
-                  <div key={idx} className="flex justify-start">
-                    <div className="max-w-[90%] bg-surface-hover border border-border rounded-2xl px-4 py-3">
-                      <div className="text-xs flex items-start gap-2">
-                        <span className="flex-shrink-0 mt-0.5">{getAgentIcon(step.agent)}</span>
-                        <div className="flex-1">
-                          <div className="font-semibold text-foreground flex items-center gap-2">
-                            {step.agent}
-                            {isProcessRunning(step) && (
-                              <svg className="w-3 h-3 animate-spin text-civic-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                            )}
-                            {step.status === 'completed' && !isOrchestratorThinking(step) && (
-                              <span className="text-civic-green">✓</span>
-                            )}
-                          </div>
-                          <div className="text-accent mt-1">
-                            {step.action}
-                            {isOrchestratorThinking(step) && (
-                              <span className="inline-flex ml-1">
-                                <span className="animate-[bounce_1s_infinite_0ms]">.</span>
-                                <span className="animate-[bounce_1s_infinite_200ms]">.</span>
-                                <span className="animate-[bounce_1s_infinite_400ms]">.</span>
-                              </span>
-                            )}
-                          </div>
-                        </div>
+            {/* Typing Indicator */}
+            {isProcessing && typingStep && (
+              <div className="flex justify-start">
+                <div className="max-w-[90%] bg-surface-hover border border-border rounded-2xl px-4 py-3">
+                  <div className="text-xs flex items-start gap-2">
+                    <span className="flex-shrink-0 mt-0.5">{getAgentIcon(typingStep.agent)}</span>
+                    <div className="flex-1">
+                      <div className="font-semibold text-foreground">{typingStep.agent}</div>
+                      <div className="text-accent mt-1">
+                        <span className="inline-flex gap-0.5">
+                          <span className="animate-[bounce_1s_infinite_0ms]">.</span>
+                          <span className="animate-[bounce_1s_infinite_200ms]">.</span>
+                          <span className="animate-[bounce_1s_infinite_400ms]">.</span>
+                        </span>
                       </div>
                     </div>
                   </div>
-                ))}
-              </>
+                </div>
+              </div>
             )}
 
             <div ref={messagesEndRef} />

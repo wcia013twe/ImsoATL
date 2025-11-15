@@ -28,6 +28,7 @@ from agents.census_scorer import CensusScorerAgent
 from agents.fcc_filter import FCCFilterAgent
 from agents.asset_locater import AssetLocatorAgent
 from agents.proximity_ranker import ProximityRankerAgent
+from agents.synthesis_agent import SynthesisAgent
 from agents.explainer import ExplainerAgent
 
 
@@ -40,11 +41,14 @@ class AgentOrchestrator:
         self.fcc_client = FCCBroadbandClient()
         self.assets_client = CivicAssetsClient()
 
-        # Initialize agents
+        # Initialize data-fetching agents
         self.census_agent = CensusScorerAgent(self.census_client)
         self.fcc_agent = FCCFilterAgent(self.fcc_client)
         self.asset_agent = AssetLocatorAgent(self.assets_client)
-        self.ranker_agent = ProximityRankerAgent()
+
+        # Initialize decision-making agents
+        self.synthesis_agent = SynthesisAgent()  # NEW: Dedicated synthesis pipeline
+        self.ranker_agent = ProximityRankerAgent()  # Legacy, keeping for backwards compatibility
         self.explainer_agent = ExplainerAgent(gemini_api_key)
 
         # Store intermediate results for dynamic pipeline
@@ -147,8 +151,51 @@ class AgentOrchestrator:
             }
         }
 
+    async def execute_synthesis_agent(self, user_priorities: Dict[str, float] = None):
+        """Execute Synthesis/Decision Agent - combines all data sources"""
+        logger.info("Executing Synthesis Agent")
+        yield {
+            "type": "agent_step",
+            "agent": "🧠 Synthesis Agent",
+            "action": "Combining Census, FCC, and Asset data into unified recommendations",
+            "status": "in_progress"
+        }
+
+        # Gather all data from previous agents
+        census_data = self.pipeline_data.get('scored_tracts', [])
+        fcc_data = self.pipeline_data.get('fcc_prioritized', [])
+        asset_data = self.pipeline_data.get('anchor_sites', [])
+
+        logger.info(f"Synthesizing: {len(census_data)} census tracts, {len(fcc_data)} FCC records, {len(asset_data)} assets")
+
+        # Run synthesis pipeline
+        deployment_plan = await self.synthesis_agent.synthesize_recommendations(
+            census_data=census_data,
+            fcc_data=fcc_data,
+            asset_data=asset_data,
+            user_weights=user_priorities,
+            max_sites=15
+        )
+
+        self.pipeline_data['deployment_plan'] = deployment_plan
+        self.pipeline_data['ranked_sites'] = deployment_plan.get('recommended_sites', [])
+
+        logger.info(f"Synthesis complete: {deployment_plan.get('recommended_sites_count', 0)} sites recommended")
+
+        yield {
+            "type": "agent_step",
+            "agent": "🧠 Synthesis Agent",
+            "action": f"Synthesized {deployment_plan.get('recommended_sites_count', 0)} recommendations across {len(deployment_plan.get('phases', []))} deployment phases",
+            "status": "completed",
+            "data": {
+                "sites_recommended": deployment_plan.get('recommended_sites_count', 0),
+                "phases": len(deployment_plan.get('phases', [])),
+                "total_impact": deployment_plan.get('projected_impact', {})
+            }
+        }
+
     async def execute_ranking_agent(self):
-        """Execute Ranking Agent"""
+        """Execute Legacy Ranking Agent (kept for backwards compatibility)"""
         logger.info("Executing Ranking Agent")
         yield {
             "type": "agent_step",
@@ -266,7 +313,8 @@ class AgentOrchestrator:
                 "Census Data Agent": lambda: self.execute_census_agent(state_fips),
                 "FCC Data Agent": lambda: self.execute_fcc_agent(state_fips),
                 "Civic Assets Agent": lambda: self.execute_assets_agent(),
-                "Ranking Agent": lambda: self.execute_ranking_agent(),
+                "Synthesis Agent": lambda: self.execute_synthesis_agent(),
+                "Ranking Agent": lambda: self.execute_ranking_agent(),  # Legacy fallback
             }
 
             # Execute each agent in the reasoning plan

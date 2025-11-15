@@ -106,87 +106,51 @@ export default function InteractiveMap({
     map.current.on('load', () => {
       if (!map.current) return;
 
-      // Load Atlanta GeoJSON boundary data
-      fetch('/data/tl_2024_13_bg.json')
+      // Load pre-generated Atlanta boundary (2.3KB instead of 58MB!)
+      fetch('/data/cities/atlanta.json')
         .then(response => response.json())
-        .then(data => {
+        .then(atlantaBoundary => {
           if (!map.current) return;
 
-          console.log('Loaded GeoJSON with', data.features.length, 'features');
+          console.log('Loaded pre-generated Atlanta boundary');
 
-          // Use Turf.js to dissolve/union all polygons into a single outline
-          // This creates one clean boundary instead of showing each census block
-          try {
-            // Filter for Atlanta area only - Fulton County code is 121
-            // GEOID format: SSCCCTTTTTT where SS=state, CCC=county, TTTTTT=tract
-            // For Atlanta/Fulton County: starts with "13121"
-            const atlantaPolygons = data.features.filter((feature: any) => {
-              if (!feature.geometry ||
-                  (feature.geometry.type !== 'Polygon' && feature.geometry.type !== 'MultiPolygon')) {
-                return false;
-              }
-
-              // Filter by GEOID - keep only Fulton County (121) block groups
-              const geoid = feature.properties?.GEOID || '';
-              return geoid.startsWith('13121'); // State 13 (GA), County 121 (Fulton)
-            });
-
-            console.log('Filtered to', atlantaPolygons.length, 'Atlanta/Fulton County polygons');
-
-            if (atlantaPolygons.length === 0) {
-              throw new Error('No Atlanta polygons found in data');
-            }
-
-            // Combine all polygons into one using Turf's union
-            let dissolved = atlantaPolygons[0];
-            for (let i = 1; i < atlantaPolygons.length; i++) {
-              try {
-                dissolved = turf.union(dissolved, atlantaPolygons[i]);
-              } catch (e) {
-                console.warn('Skipping problematic polygon', i, e);
-              }
-            }
-
-            console.log('Successfully dissolved into single boundary');
-
-            // Create a FeatureCollection with just the dissolved boundary
-            const dissolvedData = {
+          // Add Atlanta boundary source with pre-processed boundary
+          map.current.addSource('atlanta-boundary', {
+            type: 'geojson',
+            data: {
               type: 'FeatureCollection' as const,
-              features: [dissolved]
-            };
+              features: [atlantaBoundary]
+            },
+          });
 
-            // Add the dissolved boundary source
-            map.current.addSource('atlanta-boundary', {
-              type: 'geojson',
-              data: dissolvedData,
-            });
+          // Add the clean outer boundary layer
+          map.current.addLayer({
+            id: 'atlanta-boundary',
+            type: 'line',
+            source: 'atlanta-boundary',
+            paint: {
+              'line-color': '#2691FF',
+              'line-width': 3,
+              'line-opacity': 0.8,
+            },
+          });
 
-            // Add the clean outer boundary layer
-            map.current.addLayer({
-              id: 'atlanta-boundary',
-              type: 'line',
-              source: 'atlanta-boundary',
-              paint: {
-                'line-color': '#2691FF',
-                'line-width': 3,
-                'line-opacity': 0.8,
-              },
+          // Auto-zoom map to fit Atlanta boundary perfectly
+          const bounds = atlantaBoundary.properties.bounds;
+          if (bounds && bounds.length === 2) {
+            console.log('Fitting map to Atlanta bounds:', bounds);
+            map.current.fitBounds(bounds, {
+              padding: 50,
+              duration: 1000,
+              maxZoom: 11.5
             });
-
-            console.log('Atlanta boundary layer added successfully');
-          } catch (error) {
-            console.error('Error dissolving polygons:', error);
-            // Fallback to showing all polygons if dissolution fails
-            map.current.addSource('atlanta-boundary', {
-              type: 'geojson',
-              data: data,
-            });
-            map.current.addLayer(MAP_LAYERS.atlantaBoundary);
           }
+
+          console.log('Atlanta boundary displayed successfully');
         })
         .catch(error => {
-          console.error('Error loading Atlanta GeoJSON:', error);
-          // Fallback to mock data if GeoJSON fails to load
+          console.error('Error loading Atlanta boundary:', error);
+          // Fallback to mock data if boundary file fails to load
           if (map.current) {
             map.current.addSource('atlanta-boundary', {
               type: 'geojson',

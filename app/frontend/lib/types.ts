@@ -6,7 +6,7 @@ export type MessageRole = 'user' | 'assistant';
 
 export type MessageType = 'agent_step' | 'final_response' | 'error';
 
-export type AgentStepStatus = 'in_progress' | 'completed' | 'error';
+export type AgentStepStatus = 'in_progress' | 'completed' | 'error' | 'typing';
 
 export interface ChatMessage {
   id: string;

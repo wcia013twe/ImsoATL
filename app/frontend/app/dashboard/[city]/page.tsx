@@ -19,7 +19,8 @@ type CityData = {
 
 export default function DashboardPage({ params }: { params: { city: string } }) {
   const [cityData, setCityData] = useState<CityData | null>(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isRecommendationsOpen, setIsRecommendationsOpen] = useState(false);
   const [recommendations, setRecommendations] = useState<DeploymentPlan | null>(null);
   const mapRef = useRef<{ showRecommendations: (plan: DeploymentPlan) => void } | null>(null);
 
@@ -34,6 +35,7 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
 
   const handleRecommendationsReceived = (plan: DeploymentPlan) => {
     setRecommendations(plan);
+    setIsRecommendationsOpen(true); // Auto-open recommendations sidebar
     // Notify map component to show recommendations
     if (mapRef.current && mapRef.current.showRecommendations) {
       mapRef.current.showRecommendations(plan);
@@ -50,7 +52,7 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Chat Sidebar */}
+      {/* Chat Sidebar (Left) */}
       <ChatSidebar
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
@@ -58,8 +60,21 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
         onRecommendationsReceived={handleRecommendationsReceived}
       />
 
-      {/* Main Dashboard - shifts when chat is open */}
-      <div className={`flex-1 transition-all duration-300 ${isChatOpen ? 'ml-[32rem]' : 'ml-0'}`}>
+      {/* Recommendations Sidebar (Right) */}
+      <RecommendationsSidebar
+        isOpen={isRecommendationsOpen}
+        onClose={() => setIsRecommendationsOpen(false)}
+        deploymentPlan={recommendations}
+      />
+
+      {/* Main Dashboard - shifts when sidebars are open */}
+      <div
+        className={`flex-1 transition-all duration-300 ${
+          isChatOpen ? 'ml-[32rem]' : 'ml-0'
+        } ${
+          isRecommendationsOpen ? 'mr-96' : 'mr-0'
+        }`}
+      >
         <DashboardHeader
           onToggleChat={() => setIsChatOpen(!isChatOpen)}
           cityName={cityData.name}
@@ -72,8 +87,7 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
             cityName={cityData.name}
             recommendations={recommendations}
           />
-          {/* <RecommendationsSidebar />
-          <Footer /> */}
+          {/* <Footer /> */}
         </div>
       </div>
     </div>
