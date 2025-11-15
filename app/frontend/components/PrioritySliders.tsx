@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { content } from '@/lib/content';
+import { content, iconography } from '@/lib/content';
 
 type PriorityValues = {
   equity: number;
@@ -38,7 +38,7 @@ export default function PrioritySliders() {
               <div key={slider.id}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">{content.iconography[slider.icon as keyof typeof content.iconography]}</span>
+                    <span className="text-xl">{iconography[slider.icon as keyof typeof iconography]}</span>
                     <div>
                       <h3 className="text-base font-medium text-gray-900">
                         {slider.label}
