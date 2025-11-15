@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pydantic
+python-dotenv
+google-generativeai
+geopandas
+h3
+shapely
+pyproj
+requests
+pandas
+pytest
+pytest-mock
