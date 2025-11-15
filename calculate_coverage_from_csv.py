@@ -11,15 +11,49 @@ The CSV has columns:
 - state_usps, block_geoid, h3_res8_id
 """
 
-import pandas as pd
-import geopandas as gpd
-from pathlib import Path
 import logging
+import time
+from pathlib import Path
+
+import geopandas as gpd
+import pandas as pd
+import requests
+from shapely.geometry import Point
+from typing import Dict, List, Optional
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+ASSET_FILTERS = {
+    "hospitals": '["amenity"="hospital"]',
+    "schools": '["amenity"="school"]',
+    "clinics": '["amenity"="clinic"]',
+    "pharmacies": '["amenity"="pharmacy"]',
+    "police": '["amenity"="police"]',
+    "fire_stations": '["amenity"="fire_station"]',
+    "libraries": '["amenity"="library"]',
+    "childcare": '["amenity"="childcare"]',
+    "kindergartens": '["amenity"="kindergarten"]',
+    "community_centers": '["amenity"="community_centre"]',
+    "places_of_worship": '["amenity"="place_of_worship"]',
+    "eldercare": '["amenity"="social_facility"]["social_facility"="nursing_home"]',
+    "colleges": '["amenity"="college"]',
+    "universities": '["amenity"="university"]',
+    "post_offices": '["amenity"="post_office"]',
+    "supermarkets": '["shop"="supermarket"]',
+    "marketplaces": '["amenity"="marketplace"]',
+    "bus_stations": '["amenity"="bus_station"]',
+    "transit_stations": '["public_transport"="station"]',
+    "rail_stations": '["railway"="station"]',
+    "transit_stops": '["public_transport"="stop_position"]',
+}
+
+STATE_FIPS_TO_ABBR = {
+    "12": "FL",
+    "13": "GA",
+}
 
 
 def load_fcc_csv_files(data_dir: str = "data") -> pd.DataFrame:
@@ -292,6 +326,156 @@ def load_census_tracts(state_fips: str = "13") -> gpd.GeoDataFrame:
         return gpd.GeoDataFrame()
 
 
+def fetch_osm_assets(
+    state_abbrev: str,
+    asset_filters: Optional[Dict[str, str]] = None,
+    max_retries: int = 3,
+    retry_wait: int = 5,
+) -> gpd.GeoDataFrame:
+    """
+    Download asset locations from OpenStreetMap via the Overpass API.
+
+    Args:
+        state_abbrev: Two-letter state abbreviation (e.g. GA, FL)
+        asset_filters: Mapping of asset labels to Overpass filter expressions
+    """
+    filters = asset_filters or ASSET_FILTERS
+    logger.info(
+        f"Fetching {len(filters)} OSM asset layers for state US-{state_abbrev}..."
+    )
+
+    overpass_url = "https://overpass-api.de/api/interpreter"
+    headers = {
+        "User-Agent": "ImsoATL-coverage-script/1.0 (+https://github.com/ImsoATL)"
+    }
+    asset_rows = []
+
+    for asset_label, filter_expr in filters.items():
+        query = f"""
+        [out:json][timeout:60];
+        area["ISO3166-2"="US-{state_abbrev}"][admin_level=4];
+        (
+          node{filter_expr}(area);
+          way{filter_expr}(area);
+          relation{filter_expr}(area);
+        );
+        out center;
+        """
+        elements = []
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = requests.post(
+                    overpass_url, data={"data": query}, headers=headers, timeout=90
+                )
+                response.raise_for_status()
+                elements = response.json().get("elements", [])
+                logger.info(
+                    f"  Retrieved {len(elements):,} records for asset '{asset_label}'"
+                )
+                break
+            except requests.exceptions.HTTPError as exc:
+                status = exc.response.status_code if exc.response else None
+                logger.warning(
+                    f"Attempt {attempt}/{max_retries} failed for '{asset_label}' "
+                    f"with HTTP status {status}: {exc}"
+                )
+            except Exception as exc:
+                logger.warning(
+                    f"Attempt {attempt}/{max_retries} failed for '{asset_label}': {exc}"
+                )
+
+            if attempt < max_retries:
+                sleep_for = retry_wait * attempt
+                logger.info(f"  Retrying '{asset_label}' in {sleep_for} seconds...")
+                time.sleep(sleep_for)
+
+        if not elements:
+            logger.error(f"Failed to fetch {asset_label} assets after retries.")
+            continue
+
+        for element in elements:
+            center = element.get("center", {})
+            lat = element.get("lat") or center.get("lat")
+            lon = element.get("lon") or center.get("lon")
+            if lat is None or lon is None:
+                continue
+
+            asset_rows.append(
+                {
+                    "asset_type": asset_label,
+                    "source_id": element.get("id"),
+                    "name": element.get("tags", {}).get("name"),
+                    "geometry": Point(lon, lat),
+                }
+            )
+
+    if not asset_rows:
+        logger.warning("No assets returned by Overpass API.")
+        return gpd.GeoDataFrame(columns=["asset_type", "geometry"], geometry="geometry")
+
+    assets_gdf = gpd.GeoDataFrame(asset_rows, geometry="geometry", crs="EPSG:4326")
+    return assets_gdf
+
+
+def add_asset_counts_to_tracts(
+    tracts_gdf: gpd.GeoDataFrame,
+    assets_gdf: gpd.GeoDataFrame,
+    asset_labels: Optional[List[str]] = None,
+) -> gpd.GeoDataFrame:
+    """Spatially join asset points to tracts and attach per-tract counts."""
+    labels = asset_labels or list(ASSET_FILTERS.keys())
+    result = tracts_gdf.copy()
+    output_cols = [f"asset_count_{label}" for label in labels]
+
+    for col in output_cols:
+        if col not in result.columns:
+            result[col] = 0
+
+    if assets_gdf is None or assets_gdf.empty:
+        logger.warning("Skipping asset join because we do not have asset points.")
+        return result
+
+    logger.info("Joining asset locations to census tracts...")
+    if assets_gdf.crs != result.crs:
+        assets_gdf = assets_gdf.to_crs(result.crs)
+
+    tracts_simple = result[["GEOID", "geometry"]]
+    joined = gpd.sjoin(
+        assets_gdf[["asset_type", "geometry"]],
+        tracts_simple,
+        how="left",
+        predicate="within",
+    )
+
+    if joined.empty:
+        logger.warning("No assets fell inside a census tract boundary.")
+        return result
+
+    counts = (
+        joined.groupby(["GEOID", "asset_type"])
+        .size()
+        .unstack(fill_value=0)
+        .reindex(columns=labels, fill_value=0)
+        .reset_index()
+    )
+
+    rename_map = {label: f"asset_count_{label}" for label in labels}
+    counts = counts.rename(columns=rename_map)
+
+    for col in output_cols:
+        if col not in counts.columns:
+            counts[col] = 0
+
+    result = result.drop(columns=output_cols, errors="ignore")
+    result = result.merge(counts[["GEOID", *output_cols]], on="GEOID", how="left")
+
+    for col in output_cols:
+        result[col] = result[col].fillna(0).astype(int)
+
+    logger.info("Finished calculating asset counts per tract.")
+    return result
+
+
 def main():
     """Main execution"""
     logger.info("=" * 70)
@@ -322,7 +506,24 @@ def main():
     # Step 4: Calculate coverage percentages
     tracts_with_coverage = calculate_coverage_percentage(tract_coverage, tracts_gdf)
 
-    # Step 5: Save results
+    # Step 5: Enrich with asset counts
+    asset_labels = list(ASSET_FILTERS.keys())
+    asset_columns = [f"asset_count_{label}" for label in asset_labels]
+    state_abbrev = STATE_FIPS_TO_ABBR.get(state_fips)
+    if state_abbrev:
+        assets_gdf = fetch_osm_assets(state_abbrev, ASSET_FILTERS)
+        tracts_with_coverage = add_asset_counts_to_tracts(
+            tracts_with_coverage, assets_gdf, asset_labels
+        )
+    else:
+        logger.warning(
+            f"No state abbreviation mapping for FIPS {state_fips}. Asset counts will be zero."
+        )
+        for col in asset_columns:
+            if col not in tracts_with_coverage.columns:
+                tracts_with_coverage[col] = 0
+
+    # Step 6: Save results
     state_names = {"13": "georgia", "12": "florida"}
     state_name = state_names.get(state_fips, f"state_{state_fips}")
 
@@ -334,7 +535,9 @@ def main():
     csv_file = Path(f"{state_name}_tract_coverage.csv")
 
     # Use 25/3 Mbps as the standard broadband coverage threshold
-    coverage_df = tracts_with_coverage[["GEOID", "coverage_percent_25_3"]].copy()
+    coverage_df = tracts_with_coverage[
+        ["GEOID", "coverage_percent_25_3", *asset_columns]
+    ].copy()
     coverage_df = coverage_df.rename(columns={"coverage_percent_25_3": "coverage"})
 
     coverage_df.to_csv(csv_file, index=False)
@@ -355,6 +558,17 @@ def main():
     logger.info(
         f"Max providers in a tract: {tracts_with_coverage['provider_count'].max():.0f}"
     )
+
+    asset_cols = [
+        col for col in tracts_with_coverage.columns if col.startswith("asset_count_")
+    ]
+    if asset_cols:
+        logger.info("\nAverage assets per tract:")
+        for col in asset_cols:
+            logger.info(
+                f"  {col.replace('asset_count_', '').title()}: "
+                f"{tracts_with_coverage[col].mean():.2f}"
+            )
 
     # Coverage by speed tier
     for tier in ["25_3", "100_20", "1000_100"]:
