@@ -16,7 +16,7 @@ export default function USMapBackground() {
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
+      style: 'mapbox://styles/mapbox/dark-v11',
       center: [-98.5795, 39.8283], // Center of USA
       zoom: 3.5,
       pitch: 45, // 3D tilt
@@ -43,12 +43,12 @@ export default function USMapBackground() {
   return (
     <div className="absolute inset-0 w-full h-full">
       {/* Map Container */}
-      <div ref={mapContainer} className="w-full h-full" />
+      <div ref={mapContainer} className="w-full h-full opacity-40" />
 
       {/* Blur Overlay */}
       <div
-        className="absolute inset-0 backdrop-blur-md bg-white/40"
-        style={{ backdropFilter: 'blur(8px)' }}
+        className="absolute inset-0 backdrop-blur-xl"
+        style={{ backdropFilter: 'blur(12px)' }}
       />
     </div>
   );

@@ -1,93 +1,171 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
-import { MAPBOX_CONFIG, MAP_LAYERS } from '@/lib/mapbox-config';
-import MapLayerControl from './MapLayerControl';
-import type { DeploymentPlan } from '@/lib/types';
+import { useEffect, useRef, useState } from "react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+import * as turf from "@turf/turf";
+import { MAPBOX_CONFIG, MAP_LAYERS } from "@/lib/mapbox-config";
+import MapLayerControl from "./MapLayerControl";
+import type { DeploymentPlan } from "@/lib/types";
 
 // Mock data sources - replace with real data in backend integration
 const MOCK_DATA = {
   atlantaBoundary: {
-    type: 'FeatureCollection' as const,
+    type: "FeatureCollection" as const,
     features: [
       {
-        type: 'Feature' as const,
+        type: "Feature" as const,
         geometry: {
-          type: 'Polygon' as const,
-          coordinates: [[
-            [-84.55, 33.65],
-            [-84.55, 33.89],
-            [-84.29, 33.89],
-            [-84.29, 33.65],
-            [-84.55, 33.65],
-          ]],
+          type: "Polygon" as const,
+          coordinates: [
+            [
+              [-84.55, 33.65],
+              [-84.55, 33.89],
+              [-84.29, 33.89],
+              [-84.29, 33.65],
+              [-84.55, 33.65],
+            ],
+          ],
         },
         properties: {},
       },
     ],
   },
   libraries: {
-    type: 'FeatureCollection' as const,
+    type: "FeatureCollection" as const,
     features: [
       {
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [-84.408, 33.749] },
-        properties: { name: 'Central Library', type: 'library' },
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [-84.408, 33.749] },
+        properties: { name: "Central Library", type: "library" },
       },
       {
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [-84.428, 33.738] },
-        properties: { name: 'Southwest Library', type: 'library' },
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [-84.428, 33.738] },
+        properties: { name: "Southwest Library", type: "library" },
       },
     ],
   },
   candidateSites: {
-    type: 'FeatureCollection' as const,
+    type: "FeatureCollection" as const,
     features: [
       {
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [-84.408, 33.755] },
-        properties: { name: 'Candidate Site 1', reach: 2200, equityScore: 9.2 },
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [-84.408, 33.755] },
+        properties: { name: "Candidate Site 1", reach: 2200, equityScore: 9.2 },
       },
     ],
   },
 };
 
 const LAYER_CONFIG = [
-  { id: 'atlanta-boundary', label: 'Atlanta Boundary', color: '#2691FF' },
-  { id: 'census-poverty', label: 'Poverty Rate', color: '#19B987', description: 'Census tract poverty data' },
-  { id: 'census-internet', label: 'Internet Access', color: '#2691FF', description: 'Households without internet' },
-  { id: 'fcc-broadband', label: 'FCC Coverage', color: '#FFB84D', description: 'Federal broadband data' },
-  { id: 'libraries', label: 'Libraries', color: '#7C3AED' },
-  { id: 'community-centers', label: 'Community Centers', color: '#DC2626' },
-  { id: 'transit-stops', label: 'Transit Stops', color: '#7DBDFF' },
-  { id: 'candidate-sites', label: 'Candidate Sites', color: '#2691FF' },
-  { id: 'existing-wifi', label: 'Existing WiFi', color: '#6B7280' },
+  { id: "city-boundary", label: "City Boundary", color: "#2691FF" },
+  {
+    id: "census-poverty",
+    label: "Poverty Rate",
+    color: "#19B987",
+    description: "Census tract poverty data",
+  },
+  {
+    id: "census-internet",
+    label: "Internet Access",
+    color: "#2691FF",
+    description: "Households without internet",
+  },
+  {
+    id: "fcc-broadband",
+    label: "FCC Coverage",
+    color: "#FFB84D",
+    description: "Federal broadband data",
+  },
+  { id: "libraries", label: "Libraries", color: "#7C3AED" },
+  { id: "community-centers", label: "Community Centers", color: "#DC2626" },
+  { id: "transit-stops", label: "Transit Stops", color: "#7DBDFF" },
+  { id: "candidate-sites", label: "Candidate Sites", color: "#2691FF" },
+  { id: "existing-wifi", label: "Existing WiFi", color: "#6B7280" },
 ];
 
 export default function InteractiveMap({
   cityCenter,
   cityName,
-  recommendations
+  citySlug,
+  recommendations,
+  mapRefProp,
 }: {
   cityCenter?: [number, number];
   cityName?: string;
+  citySlug?: string;
   recommendations?: DeploymentPlan | null;
+  mapRefProp?: React.MutableRefObject<{
+    showRecommendations: (plan: DeploymentPlan) => void;
+    centerOnSite: (siteIndex: number) => void;
+  } | null>;
 }) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [activeLayers, setActiveLayers] = useState<string[]>([
-    'atlanta-boundary',
-    'libraries',
-    'candidate-sites',
+    "city-boundary",
+    "libraries",
+    "candidate-sites",
   ]);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [siteCoordinates, setSiteCoordinates] = useState<[number, number][]>([]);
 
   // Use provided city coordinates or default to Atlanta
-  const mapCenter = cityCenter || [MAPBOX_CONFIG.atlantaCenter.lng, MAPBOX_CONFIG.atlantaCenter.lat];
+  const mapCenter = cityCenter || [
+    MAPBOX_CONFIG.atlantaCenter.lng,
+    MAPBOX_CONFIG.atlantaCenter.lat,
+  ];
   const mapZoom = cityCenter ? 11.5 : MAPBOX_CONFIG.atlantaCenter.zoom;
+  const boundarySlug = citySlug || "atlanta";
+
+  // Expose methods via ref
+  useEffect(() => {
+    if (mapRefProp) {
+      mapRefProp.current = {
+        showRecommendations: (plan: DeploymentPlan) => {
+          // Handle showing recommendations
+          console.log('Show recommendations:', plan);
+        },
+        centerOnSite: (siteIndex: number) => {
+          if (siteCoordinates[siteIndex] && map.current && recommendations) {
+            const coords = siteCoordinates[siteIndex];
+            const site = recommendations.recommended_sites[siteIndex];
+
+            // Fly to the site location
+            map.current.flyTo({
+              center: coords,
+              zoom: 14,
+              duration: 1000,
+              essential: true
+            });
+
+            // Open popup after a short delay to ensure map has centered
+            setTimeout(() => {
+              if (!map.current) return;
+
+              new mapboxgl.Popup()
+                .setLngLat(coords)
+                .setHTML(
+                  `
+                  <div style="font-family: system-ui; padding: 4px;">
+                    <strong style="color: #1f2937; font-size: 14px;">${site.name || `Site ${siteIndex + 1}`}</strong><br/>
+                    <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+                      <div><strong>Score:</strong> ${site.composite_score}/100</div>
+                      <div><strong>Poverty Rate:</strong> ${site.poverty_rate}%</div>
+                      <div><strong>No Internet:</strong> ${site.no_internet_pct}%</div>
+                      <div><strong>Priority:</strong> ${site.recommendation_tier}</div>
+                    </div>
+                  </div>
+                `
+                )
+                .addTo(map.current);
+            }, 500);
+          }
+        }
+      };
+    }
+  }, [mapRefProp, siteCoordinates, recommendations]);
 
   // Initialize map
   useEffect(() => {
@@ -102,44 +180,80 @@ export default function InteractiveMap({
       zoom: mapZoom,
     });
 
-    map.current.on('load', () => {
+    map.current.on("load", () => {
       if (!map.current) return;
 
-      // Load Atlanta GeoJSON boundary data
-      fetch('/data/tl_2024_13_bg.json')
-        .then(response => response.json())
-        .then(data => {
+      // Load pre-generated city boundary
+      fetch(`/data/cities/${boundarySlug}.json`)
+        .then((response) => response.json())
+        .then((cityBoundary) => {
           if (!map.current) return;
 
-          // Add Atlanta boundary source with real GeoJSON data
-          map.current.addSource('atlanta-boundary', {
-            type: 'geojson',
-            data: data,
+          console.log(`Loaded pre-generated ${boundarySlug} boundary`);
+
+          // Add city boundary source with pre-processed boundary
+          map.current.addSource("city-boundary", {
+            type: "geojson",
+            data: {
+              type: "FeatureCollection" as const,
+              features: [cityBoundary],
+            },
           });
 
-          // Add the boundary layer
-          map.current.addLayer(MAP_LAYERS.atlantaBoundary);
+          // Add the clean outer boundary layer
+          map.current.addLayer({
+            id: "city-boundary",
+            type: "line",
+            source: "city-boundary",
+            paint: {
+              "line-color": "#2691FF",
+              "line-width": 3,
+              "line-opacity": 0.8,
+            },
+          });
+
+          // Auto-zoom map to fit city boundary perfectly
+          const bounds = cityBoundary.properties.bounds;
+          if (bounds && bounds.length === 2) {
+            console.log(`Fitting map to ${boundarySlug} bounds:`, bounds);
+            map.current.fitBounds(bounds, {
+              padding: 50,
+              duration: 1000,
+              maxZoom: 11.5,
+            });
+          }
+
+          console.log(`${boundarySlug} boundary displayed successfully`);
         })
-        .catch(error => {
-          console.error('Error loading Atlanta GeoJSON:', error);
-          // Fallback to mock data if GeoJSON fails to load
+        .catch((error) => {
+          console.error(`Error loading ${boundarySlug} boundary:`, error);
+          // Fallback to mock data if boundary file fails to load
           if (map.current) {
-            map.current.addSource('atlanta-boundary', {
-              type: 'geojson',
+            map.current.addSource("city-boundary", {
+              type: "geojson",
               data: MOCK_DATA.atlantaBoundary,
             });
-            map.current.addLayer(MAP_LAYERS.atlantaBoundary);
+            map.current.addLayer({
+              id: "city-boundary",
+              type: "line",
+              source: "city-boundary",
+              paint: {
+                "line-color": "#2691FF",
+                "line-width": 3,
+                "line-opacity": 0.8,
+              },
+            });
           }
         });
 
       // Add other data sources
-      map.current.addSource('libraries', {
-        type: 'geojson',
+      map.current.addSource("libraries", {
+        type: "geojson",
         data: MOCK_DATA.libraries,
       });
 
-      map.current.addSource('candidate-sites', {
-        type: 'geojson',
+      map.current.addSource("candidate-sites", {
+        type: "geojson",
         data: MOCK_DATA.candidateSites,
       });
 
@@ -147,35 +261,57 @@ export default function InteractiveMap({
       map.current.addLayer(MAP_LAYERS.libraries);
       map.current.addLayer(MAP_LAYERS.candidateSites);
 
-      // Add click handlers for popups
-      map.current.on('click', 'libraries', (e) => {
+      // Add click handlers for popups with centering
+      map.current.on("click", "libraries", (e) => {
         if (!map.current || !e.features || !e.features[0]) return;
         const feature = e.features[0];
+
+        // Center map on clicked point
+        map.current.flyTo({
+          center: e.lngLat,
+          zoom: 14,
+          duration: 1000,
+          essential: true
+        });
+
         new mapboxgl.Popup()
           .setLngLat(e.lngLat)
-          .setHTML(`<strong>${feature.properties?.name}</strong><br/>Type: Library`)
+          .setHTML(
+            `<strong>${feature.properties?.name}</strong><br/>Type: Library`
+          )
           .addTo(map.current);
       });
 
-      map.current.on('click', 'candidate-sites', (e) => {
+      map.current.on("click", "candidate-sites", (e) => {
         if (!map.current || !e.features || !e.features[0]) return;
         const feature = e.features[0];
+
+        // Center map on clicked point
+        map.current.flyTo({
+          center: e.lngLat,
+          zoom: 14,
+          duration: 1000,
+          essential: true
+        });
+
         new mapboxgl.Popup()
           .setLngLat(e.lngLat)
-          .setHTML(`
+          .setHTML(
+            `
             <strong>${feature.properties?.name}</strong><br/>
             Reach: ${feature.properties?.reach} residents<br/>
             Equity Score: ${feature.properties?.equityScore}
-          `)
+          `
+          )
           .addTo(map.current);
       });
 
       // Change cursor on hover
-      map.current.on('mouseenter', 'libraries', () => {
-        if (map.current) map.current.getCanvas().style.cursor = 'pointer';
+      map.current.on("mouseenter", "libraries", () => {
+        if (map.current) map.current.getCanvas().style.cursor = "pointer";
       });
-      map.current.on('mouseleave', 'libraries', () => {
-        if (map.current) map.current.getCanvas().style.cursor = '';
+      map.current.on("mouseleave", "libraries", () => {
+        if (map.current) map.current.getCanvas().style.cursor = "";
       });
 
       setMapLoaded(true);
@@ -192,66 +328,97 @@ export default function InteractiveMap({
     if (!map.current || !mapLoaded || !recommendations) return;
 
     // Convert recommendations to GeoJSON features
-    // Note: This is simplified - assumes center point of Atlanta for now
-    // In production, use actual tract geometries
-    const recommendedFeatures = recommendations.recommended_sites.map((site, index) => ({
-      type: 'Feature' as const,
-      geometry: {
-        type: 'Point' as const,
-        // Simplified: use approximate Atlanta center + offset
-        coordinates: [-84.388 + (index * 0.02), 33.749 + (index * 0.02)] as [number, number]
-      },
-      properties: {
-        name: site.name || `Site ${index + 1}`,
-        composite_score: site.composite_score,
-        poverty_rate: site.poverty_rate,
-        no_internet_pct: site.no_internet_pct,
-        recommendation_tier: site.recommendation_tier
+    // Use city center as base with offsets for different sites
+    const centerLng = cityCenter?.[0] || -84.388;
+    const centerLat = cityCenter?.[1] || 33.749;
+
+    // Store site coordinates for later reference
+    const coordinates: [number, number][] = [];
+
+    const recommendedFeatures = recommendations.recommended_sites.map(
+      (site, index) => {
+        const coords: [number, number] = [
+          centerLng + (index % 3 - 1) * 0.05,
+          centerLat + (Math.floor(index / 3) - 1) * 0.05
+        ];
+        coordinates.push(coords);
+
+        return {
+          type: "Feature" as const,
+          geometry: {
+            type: "Point" as const,
+            coordinates: coords,
+          },
+          properties: {
+            name: site.name || `Site ${index + 1}`,
+            composite_score: site.composite_score,
+            poverty_rate: site.poverty_rate,
+            no_internet_pct: site.no_internet_pct,
+            recommendation_tier: site.recommendation_tier,
+          },
+        };
       }
-    }));
+    );
+
+    // Update state with site coordinates
+    setSiteCoordinates(coordinates);
 
     const recommendationsGeoJSON = {
-      type: 'FeatureCollection' as const,
-      features: recommendedFeatures
+      type: "FeatureCollection" as const,
+      features: recommendedFeatures,
     };
 
     // Add or update recommendations layer
-    if (map.current.getSource('ai-recommendations')) {
-      (map.current.getSource('ai-recommendations') as mapboxgl.GeoJSONSource).setData(recommendationsGeoJSON);
+    if (map.current.getSource("ai-recommendations")) {
+      (
+        map.current.getSource("ai-recommendations") as mapboxgl.GeoJSONSource
+      ).setData(recommendationsGeoJSON);
     } else {
-      map.current.addSource('ai-recommendations', {
-        type: 'geojson',
-        data: recommendationsGeoJSON
+      map.current.addSource("ai-recommendations", {
+        type: "geojson",
+        data: recommendationsGeoJSON,
       });
 
       map.current.addLayer({
-        id: 'ai-recommendations',
-        type: 'circle',
-        source: 'ai-recommendations',
+        id: "ai-recommendations",
+        type: "circle",
+        source: "ai-recommendations",
         paint: {
-          'circle-radius': 10,
-          'circle-color': [
-            'match',
-            ['get', 'recommendation_tier'],
-            'top_priority', '#DC2626',
-            'high_priority', '#F59E0B',
-            'medium_priority', '#3B82F6',
-            '#6B7280'
+          "circle-radius": 10,
+          "circle-color": [
+            "match",
+            ["get", "recommendation_tier"],
+            "top_priority",
+            "#DC2626",
+            "high_priority",
+            "#F59E0B",
+            "medium_priority",
+            "#3B82F6",
+            "#6B7280",
           ],
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#fff'
-        }
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#fff",
+        },
       });
 
-      // Add popup on click
-      map.current.on('click', 'ai-recommendations', (e) => {
+      // Add popup on click and center map
+      map.current.on("click", "ai-recommendations", (e) => {
         if (!map.current || !e.features || !e.features[0]) return;
         const feature = e.features[0];
         const props = feature.properties;
 
+        // Center map on clicked point with smooth animation
+        map.current.flyTo({
+          center: e.lngLat,
+          zoom: 14,
+          duration: 1000,
+          essential: true
+        });
+
         new mapboxgl.Popup()
           .setLngLat(e.lngLat)
-          .setHTML(`
+          .setHTML(
+            `
             <div style="font-family: system-ui; padding: 4px;">
               <strong style="color: #1f2937; font-size: 14px;">${props?.name}</strong><br/>
               <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
@@ -261,22 +428,23 @@ export default function InteractiveMap({
                 <div><strong>Priority:</strong> ${props?.recommendation_tier}</div>
               </div>
             </div>
-          `)
+          `
+          )
           .addTo(map.current);
       });
 
-      map.current.on('mouseenter', 'ai-recommendations', () => {
-        if (map.current) map.current.getCanvas().style.cursor = 'pointer';
+      map.current.on("mouseenter", "ai-recommendations", () => {
+        if (map.current) map.current.getCanvas().style.cursor = "pointer";
       });
 
-      map.current.on('mouseleave', 'ai-recommendations', () => {
-        if (map.current) map.current.getCanvas().style.cursor = '';
+      map.current.on("mouseleave", "ai-recommendations", () => {
+        if (map.current) map.current.getCanvas().style.cursor = "";
       });
     }
 
     // Enable the layer in active layers
-    if (!activeLayers.includes('ai-recommendations')) {
-      setActiveLayers(prev => [...prev, 'ai-recommendations']);
+    if (!activeLayers.includes("ai-recommendations")) {
+      setActiveLayers((prev) => [...prev, "ai-recommendations"]);
     }
   }, [recommendations, mapLoaded]);
 
@@ -294,8 +462,8 @@ export default function InteractiveMap({
       if (map.current?.getLayer(layerId)) {
         map.current.setLayoutProperty(
           layerId,
-          'visibility',
-          isActive ? 'none' : 'visible'
+          "visibility",
+          isActive ? "none" : "visible"
         );
       }
 
@@ -308,12 +476,26 @@ export default function InteractiveMap({
       <div className="max-w-7xl mx-auto px-6">
         <div className="civic-card relative">
           <h2 className="text-2xl font-semibold text-foreground mb-4">
-            {cityName ? `${cityName} WiFi Network Map` : 'Interactive Site Map'}
+            {cityName ? `${cityName} WiFi Network Map` : "Interactive Site Map"}
           </h2>
 
           {/* Map Container */}
-          <div className="relative w-full rounded-lg overflow-hidden" style={{ height: '600px' }}>
-            <div ref={mapContainer} className="w-full h-full" />
+          <div
+            className="relative w-full rounded-lg overflow-hidden"
+            style={{ height: "600px" }}
+          >
+            <div
+              ref={mapContainer}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                width: "100%",
+                height: "100%",
+              }}
+            />
 
             {/* Layer Control */}
             <MapLayerControl

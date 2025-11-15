@@ -4,7 +4,7 @@
  */
 
 export const MAPBOX_CONFIG = {
-  accessToken: process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '',
+  accessToken: process.env.NEXT_PUBLIC_MAPBOX_TOKEN || process.env.NEXT_PUBLIC_MAPBOX || '',
   defaultStyle: 'mapbox://styles/mapbox/light-v11',
   atlantaCenter: {
     lng: -84.388,

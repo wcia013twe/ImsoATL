@@ -12,11 +12,12 @@ class ExplainerAgent:
 
     def __init__(self, gemini_api_key: str):
         genai.configure(api_key=gemini_api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
 
     async def explain_recommendation(
         self,
         deployment_plan: Dict,
+        
         user_query: str
     ) -> str:
         """
@@ -116,6 +117,58 @@ to identify high-impact deployment sites. Use clear, accessible language."""
         response = self.model.generate_content(prompt)
         return response.text
 
+    async def is_conversational_query(self, user_query: str) -> bool:
+        """
+        Determine if query is conversational (greeting, thanks, etc.) vs analytical
+
+        Args:
+            user_query: User's message
+
+        Returns:
+            True if conversational, False if requires data analysis
+        """
+        prompt = f"""
+Determine if this user message requires data analysis or is just conversational.
+
+User message: "{user_query}"
+
+Conversational messages include: greetings (hello, hi, hey), thanks/appreciation,
+farewells (bye, goodbye), general questions about capabilities ("what can you do?"),
+small talk, or acknowledgments (ok, got it, thanks).
+
+Analytical messages include: requests for WiFi deployment recommendations, questions
+about demographics, poverty rates, broadband coverage, internet access, census data,
+deployment sites, or anything requiring data analysis.
+
+Return ONLY "conversational" or "analytical" - no other text."""
+
+        response = self.model.generate_content(prompt)
+        result = response.text.strip().lower()
+        return "conversational" in result
+
+    async def generate_conversational_response(self, user_query: str) -> str:
+        """
+        Generate a friendly response to conversational queries
+
+        Args:
+            user_query: User's conversational message
+
+        Returns:
+            Conversational response
+        """
+        prompt = f"""
+You are a friendly WiFi deployment planning assistant. A user said: "{user_query}"
+
+Generate a brief, warm response. If it's a greeting, greet them back and remind them
+you can help with WiFi deployment planning, Census data, broadband coverage analysis,
+and finding optimal sites for community WiFi. If it's thanks, acknowledge it warmly.
+Keep it to 1-2 sentences.
+
+Be helpful but concise."""
+
+        response = self.model.generate_content(prompt)
+        return response.text.strip()
+
     async def generate_reasoning_steps(
         self,
         user_query: str
@@ -135,9 +188,21 @@ A user asked: "{user_query}"
 Identify what this user is trying to accomplish and break it into logical analysis steps.
 
 Return ONLY a JSON array of steps, where each step has:
-- "agent": which specialized agent handles this (Census Data Agent, FCC Data Agent, Civic Assets Agent, or Ranking Agent)
+- "agent": which specialized agent handles this
 - "action": what the agent will do
 - "rationale": why this step is needed
+
+Available agents:
+1. Census Data Agent - Fetches poverty, internet access, student population data
+2. FCC Data Agent - Analyzes broadband coverage gaps
+3. Civic Assets Agent - Locates libraries, community centers, schools, transit
+4. Synthesis Agent - Combines all data sources and generates prioritized recommendations
+
+IMPORTANT:
+- If the query asks for recommendations, deployment sites, or prioritized locations,
+  you MUST include "Synthesis Agent" as the FINAL step (after data agents)
+- Synthesis Agent should ONLY appear after Census, FCC, and/or Assets agents have run
+- Do NOT use "Ranking Agent" - use "Synthesis Agent" instead
 
 Example format:
 [
@@ -145,36 +210,41 @@ Example format:
     "agent": "Census Data Agent",
     "action": "Fetch poverty and internet access data for Georgia",
     "rationale": "Identify communities with highest need based on socioeconomic factors"
+  }},
+  {{
+    "agent": "Synthesis Agent",
+    "action": "Combine Census, FCC, and Asset data into prioritized deployment recommendations",
+    "rationale": "Generate actionable WiFi site recommendations with justifications"
   }}
 ]
 
-Return 3-4 steps maximum. Return ONLY valid JSON, no other text."""
+Return 3-5 steps maximum. Return ONLY valid JSON, no other text."""
 
         response = self.model.generate_content(prompt)
         try:
             steps = json.loads(response.text.strip())
             return steps
         except json.JSONDecodeError:
-            # Fallback if JSON parsing fails
+            # Fallback if JSON parsing fails - default full pipeline
             return [
                 {
                     "agent": "Census Data Agent",
-                    "action": "Analyze demographic data",
-                    "rationale": "Identify high-need communities"
+                    "action": "Analyze demographic data for Georgia",
+                    "rationale": "Identify high-need communities based on poverty and internet access"
                 },
                 {
                     "agent": "FCC Data Agent",
-                    "action": "Check broadband coverage",
+                    "action": "Analyze broadband coverage gaps",
                     "rationale": "Find areas with connectivity gaps"
                 },
                 {
                     "agent": "Civic Assets Agent",
-                    "action": "Locate potential anchor sites",
-                    "rationale": "Identify existing infrastructure"
+                    "action": "Locate civic anchor sites (libraries, centers, transit)",
+                    "rationale": "Identify existing infrastructure for deployment"
                 },
                 {
-                    "agent": "Ranking Agent",
-                    "action": "Synthesize data and generate recommendations",
-                    "rationale": "Prioritize sites by impact potential"
+                    "agent": "Synthesis Agent",
+                    "action": "Combine all data sources into prioritized deployment plan",
+                    "rationale": "Generate actionable recommendations with scoring and phasing"
                 }
             ]

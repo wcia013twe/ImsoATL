@@ -5,6 +5,7 @@ Analyzes and scores census tracts based on demographic need
 from typing import Dict, List
 import sys
 import os
+import dotenv
 
 # Add parent directory to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -14,6 +15,7 @@ if parent_dir not in sys.path:
 
 from data_sources.census_client import CensusDataClient
 
+dotenv.load_dotenv()
 
 class CensusScorerAgent:
     """Agent for scoring census tracts based on demographic indicators"""

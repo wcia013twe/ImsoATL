@@ -8,6 +8,7 @@ def parse_query(text: str) -> dict:
     Takes user natural language query and returns structured project constraints using Gemini.
     """
     prompt = (
+        
         f"""
         You are an expert data extraction agent for smart WiFi deployment. 
         Given this goal: '{text}', extract and return a JSON object with these fields:
@@ -20,7 +21,7 @@ def parse_query(text: str) -> dict:
         """
     )
     genai = GenerativeAI(api_key=GEMINI_API_KEY)
-    response = genai.completions.create(prompt=prompt, model="gemini-pro")
+    response = genai.completions.create(prompt=prompt, model="gemini-2.5-flash")
     try:
         # Extract and parse JSON from the model response safely
         import json

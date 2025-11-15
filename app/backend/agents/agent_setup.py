@@ -10,7 +10,7 @@ summarizer = LlmAgent(name="Summarizer", description="Summarizes text.")
 
 research_assistant = LlmAgent(
     name="ResearchAssistant",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description="Finds and summarizes information on a topic.",
     tools=[agent_tool.AgentTool(agent=web_searcher), agent_tool.AgentTool(agent=summarizer)]
 )
@@ -18,7 +18,7 @@ research_assistant = LlmAgent(
 # High-level agent delegating research
 report_writer = LlmAgent(
     name="ReportWriter",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instruction="Write a report on topic X. Use the ResearchAssistant to gather information.",
     tools=[agent_tool.AgentTool(agent=research_assistant)]
     # Alternatively, could use LLM Transfer if research_assistant is a sub_agent
