@@ -94,3 +94,11 @@ logs/
 # OS
 Thumbs.db
 .DS_Store
+
+# Data files (keep directory structure with .gitkeep)
+app/data/fcc/*
+app/data/census/*
+app/data/cache/*
+!app/data/fcc/.gitkeep
+!app/data/census/.gitkeep
+!app/data/cache/.gitkeep

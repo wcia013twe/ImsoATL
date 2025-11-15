@@ -23,11 +23,15 @@ APP_VERSION = "0.1.0"
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
 # Data Storage
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+DATA_DIR = Path(__file__).parent.parent / "data"
+FCC_DATA_DIR = DATA_DIR / "fcc"
+CENSUS_DATA_DIR = DATA_DIR / "census"
 CACHE_DIR = DATA_DIR / "cache"
 
 # Ensure directories exist
 DATA_DIR.mkdir(exist_ok=True)
+FCC_DATA_DIR.mkdir(exist_ok=True)
+CENSUS_DATA_DIR.mkdir(exist_ok=True)
 CACHE_DIR.mkdir(exist_ok=True)
 
 # FCC API Settings

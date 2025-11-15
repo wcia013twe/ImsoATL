@@ -9,16 +9,11 @@ import os
 import requests
 import geopandas as gpd
 import pandas as pd
+import tempfile
 import zipfile
 from pathlib import Path
 from typing import Optional, List
 import logging
-import sys
-
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-
-from app.backend.config import FCC_DATA_DIR, CACHE_DIR
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -130,17 +125,17 @@ class FCCDataCollector:
             response = requests.get(url, headers=self.headers, stream=True)
             response.raise_for_status()
 
-            # Save to FCC data directory
-            FCC_DATA_DIR.mkdir(parents=True, exist_ok=True)
-            output_file = FCC_DATA_DIR / f"fcc_{file_id}.zip"
+            # Create temporary file
+            temp_dir = tempfile.gettempdir()
+            temp_file = Path(temp_dir) / f"fcc_{file_id}.zip"
 
             # Save file
-            with open(output_file, "wb") as f:
+            with open(temp_file, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
 
-            logger.info(f"Downloaded to {output_file}")
-            return output_file
+            logger.info(f"Downloaded to {temp_file}")
+            return temp_file
 
         except requests.RequestException as e:
             logger.error(f"Error downloading file {file_id}: {e}")
@@ -178,9 +173,7 @@ class FCCDataCollector:
 
 
 def download_fcc_hexagon_data(
-    state_fips: str,
-    as_of_date: str = "2024-06-30",
-    save_dir: Optional[Path] = None
+    state_fips: str, as_of_date: str = "2024-06-30"
 ) -> gpd.GeoDataFrame:
     """
     Download FCC hexagon coverage data for a specific state
@@ -188,14 +181,10 @@ def download_fcc_hexagon_data(
     Args:
         state_fips: Two-digit state FIPS code (e.g., "13" for Georgia)
         as_of_date: Data snapshot date in YYYY-MM-DD format
-        save_dir: Directory to save combined data (default: FCC_DATA_DIR)
 
     Returns:
         GeoDataFrame containing H3 hexagon coverage data with FCC metrics
     """
-    if save_dir is None:
-        save_dir = FCC_DATA_DIR
-
     collector = FCCDataCollector()
 
     # List available coverage files for the state
@@ -235,30 +224,12 @@ def download_fcc_hexagon_data(
             pd.concat(gdfs, ignore_index=True), crs=gdfs[0].crs
         )
         logger.info(f"Total hexagons loaded: {len(combined_gdf)}")
-
-        # Save combined data to disk
-        save_dir = Path(save_dir)
-        save_dir.mkdir(parents=True, exist_ok=True)
-
-        # Save as GeoPackage
-        output_file = save_dir / f"fcc_hexagons_{state_fips}_{as_of_date}.gpkg"
-        combined_gdf.to_file(output_file, driver="GPKG")
-        logger.info(f"Saved combined FCC data to {output_file}")
-
-        # Also save as GeoJSON for web use
-        geojson_file = save_dir / f"fcc_hexagons_{state_fips}_{as_of_date}.geojson"
-        combined_gdf.to_file(geojson_file, driver="GeoJSON")
-        logger.info(f"Saved GeoJSON to {geojson_file}")
-
         return combined_gdf
 
     return gpd.GeoDataFrame()
 
 
-def get_fcc_data_for_location(
-    parsed_query: dict,
-    save_dir: Optional[Path] = None
-) -> gpd.GeoDataFrame:
+def get_fcc_data_for_location(parsed_query: dict) -> gpd.GeoDataFrame:
     """
     Get FCC coverage data for a specific location using parsed query data
 
@@ -267,7 +238,6 @@ def get_fcc_data_for_location(
             - state_fips: Two-digit state FIPS code
             - geography: Location string
             - coverage_threshold: Optional coverage threshold
-        save_dir: Optional directory to save data
 
     Returns:
         GeoDataFrame with hexagon coverage data for that state
@@ -282,4 +252,4 @@ def get_fcc_data_for_location(
         f"Fetching FCC data for {parsed_query.get('geography', 'unknown location')}"
     )
 
-    return download_fcc_hexagon_data(state_fips, save_dir=save_dir)
+    return download_fcc_hexagon_data(state_fips)
