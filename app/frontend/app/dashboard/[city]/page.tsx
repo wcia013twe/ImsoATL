@@ -7,6 +7,7 @@ import PrioritySliders from '@/components/PrioritySliders';
 import InteractiveMap from '@/components/InteractiveMap';
 import RecommendationsSidebar from '@/components/RecommendationsSidebar';
 import Footer from '@/components/Footer';
+import { AnimationProvider } from '@/contexts/AnimationContext';
 import type { DeploymentPlan } from '@/lib/types';
 import type { Location } from '@/utils/boundariesApi';
 import { transformPipelineToDeploymentPlan, isPipelineResponse } from '@/utils/pipelineTransform';
@@ -23,6 +24,7 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
   const [isRunningPipeline, setIsRunningPipeline] = useState(false);
   const [tractGeometries, setTractGeometries] = useState<any>(null);
   const [allWifiZones, setAllWifiZones] = useState<Record<string, any[]>>({});
+  const [chatPrompt, setChatPrompt] = useState<string>('');
   const mapRef = useRef<{
     showRecommendations: (plan: DeploymentPlan) => void;
     centerOnSite: (siteIndex: number) => void;
@@ -55,6 +57,19 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
     // Center map on the clicked site
     if (mapRef.current && mapRef.current.centerOnSite) {
       mapRef.current.centerOnSite(siteIndex);
+    }
+  };
+
+  const handleTractClick = (tractId: string, tractData: any) => {
+    console.log('Tract clicked in dashboard:', tractId, tractData);
+
+    // Generate prompt for the chatbox
+    const prompt = `Summarize Census Tract ${tractId}`;
+    setChatPrompt(prompt);
+
+    // Open chat sidebar if it's closed
+    if (!isChatOpen) {
+      setIsChatOpen(true);
     }
   };
 
@@ -135,13 +150,15 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Chat Sidebar (Left) */}
-      <ChatSidebar
+    <AnimationProvider>
+      <div className="min-h-screen bg-background flex">
+        {/* Chat Sidebar (Left) */}
+        <ChatSidebar
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         cityName={cityData.name}
         onRecommendationsReceived={handleRecommendationsReceived}
+        suggestedPrompt={chatPrompt}
       />
 
       {/* Recommendations Sidebar (Right) */}
@@ -180,10 +197,12 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
             mapRefProp={mapRef}
             tractGeometries={tractGeometries}
             allWifiZones={allWifiZones}
+            onTractClick={handleTractClick}
           />
           {/* <Footer /> */}
         </div>
       </div>
-    </div>
+      </div>
+    </AnimationProvider>
   );
 }
