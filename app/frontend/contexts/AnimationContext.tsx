@@ -32,6 +32,10 @@ export function AnimationProvider({ children }: { children: ReactNode }) {
     setMapUpdateKey(prev => prev + 1);
   }, []);
 
+  const handleSetInitialLoadComplete = useCallback((complete: boolean) => {
+    setIsInitialLoadComplete(complete);
+  }, []);
+
   return (
     <AnimationContext.Provider
       value={{
@@ -40,7 +44,7 @@ export function AnimationProvider({ children }: { children: ReactNode }) {
         triggerMapUpdate,
         mapUpdateKey,
         isInitialLoadComplete,
-        setInitialLoadComplete,
+        setInitialLoadComplete: handleSetInitialLoadComplete,
       }}
     >
       {children}
