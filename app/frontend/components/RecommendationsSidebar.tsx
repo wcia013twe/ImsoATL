@@ -1,7 +1,8 @@
 'use client';
 
 import { motion, useReducedMotion } from 'framer-motion';
-import { fadeInUp, getTransition } from '@/utils/motionVariants';
+import { fadeInUp, getTransition, TRANSITION } from '@/utils/motionVariants';
+import { useAnimationContext } from '@/contexts/AnimationContext';
 import SiteCard from './SiteCard';
 import AnimatedNumber from './AnimatedNumber';
 import type { DeploymentPlan } from '@/lib/types';
@@ -20,6 +21,7 @@ export default function RecommendationsSidebar({
   onSiteClick
 }: RecommendationsSidebarProps) {
   const shouldReduceMotion = useReducedMotion();
+  const { siteRevealKey } = useAnimationContext();
 
   return (
     <>
@@ -110,27 +112,58 @@ export default function RecommendationsSidebar({
               </motion.div>
 
               {/* Scrollable Site List */}
-              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+              <motion.div
+                key={siteRevealKey}
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  visible: {
+                    transition: {
+                      staggerChildren: 0.05,
+                      delayChildren: 0.2,
+                    },
+                  },
+                }}
+                className="flex-1 overflow-y-auto px-6 py-4 space-y-3"
+              >
                 {deploymentPlan.recommended_sites.map((site, index) => (
-                  <SiteCard
+                  <motion.div
                     key={site.tract_id}
-                    site={site}
-                    rank={index + 1}
-                    onClick={onSiteClick ? () => onSiteClick(index) : undefined}
-                  />
+                    variants={{
+                      hidden: { opacity: 0, x: 20 },
+                      visible: { opacity: 1, x: 0 },
+                    }}
+                    transition={getTransition(TRANSITION.snappy, shouldReduceMotion)}
+                    whileHover={shouldReduceMotion ? {} : { scale: 1.02, x: -4 }}
+                    whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
+                  >
+                    <SiteCard
+                      site={site}
+                      rank={index + 1}
+                      onClick={onSiteClick ? () => onSiteClick(index) : undefined}
+                    />
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             </>
           ) : (
             /* Empty State */
             <div className="flex-1 flex items-center justify-center px-6">
-              <div className="text-center">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={getTransition(
+                  { duration: 0.4, delay: 0.3 },
+                  shouldReduceMotion
+                )}
+                className="text-center"
+              >
                 <div className="text-4xl mb-3">📊</div>
                 <p className="text-foreground font-medium">No recommendations yet</p>
                 <p className="text-accent text-sm mt-2">
                   Ask the AI assistant about WiFi deployment to see ranked sites
                 </p>
-              </div>
+              </motion.div>
             </div>
           )}
         </div>
