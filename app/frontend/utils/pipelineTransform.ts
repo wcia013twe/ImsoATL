@@ -41,6 +41,7 @@ interface PipelineResponse {
     total_tracts: number;
     sites: PipelineSite[];
     geometries: any;
+    all_wifi_zones?: Record<string, any[]>;
   };
 }
 

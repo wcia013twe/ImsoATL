@@ -142,7 +142,7 @@ export default function DashboardHeader({
                     initial={{ opacity: 0, y: -10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    transition={getTransition({ duration: 0.2 }, shouldReduceMotion)}
+                    transition={getTransition({ duration: 0.2 }, shouldReduceMotion || false)}
                     className="absolute right-0 mt-2 w-48 rounded-lg border border-border bg-surface shadow-lg z-50"
                   >
                     <motion.div

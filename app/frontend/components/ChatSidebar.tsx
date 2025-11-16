@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { staggerContainer, messageSlide, agentStepReveal, sidebarSlide, getTransition, TRANSITION, SPRING } from '@/utils/motionVariants';
+import { useAnimationContext } from '@/contexts/AnimationContext';
 import type { ChatMessage, AgentStep, WebSocketMessage, DeploymentPlan } from '@/lib/types';
 
 const WEBSOCKET_URL = 'ws://localhost:8000/ws/chat';
@@ -61,6 +62,7 @@ export default function ChatSidebar({
   const wsRef = useRef<WebSocket | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const shouldReduceMotion = useReducedMotion();
+  const { triggerSiteReveal, triggerMapUpdate } = useAnimationContext();
 
   // Update input when suggestedPrompt changes
   useEffect(() => {
@@ -184,6 +186,13 @@ export default function ChatSidebar({
         // Notify parent component of recommendations
         if (data.deployment_plan && onRecommendationsReceived) {
           onRecommendationsReceived(data.deployment_plan);
+
+          // Trigger coordinated animation cascade: Chat completes → Sites reveal → Map updates
+          // Add slight delay to let final message settle
+          setTimeout(() => {
+            triggerSiteReveal(); // Triggers site card stagger in RecommendationsSidebar
+            triggerMapUpdate();  // Triggers map marker animations
+          }, 200);
         }
 
         ws.close();
@@ -339,7 +348,7 @@ export default function ChatSidebar({
               <motion.div
                 key={message.id}
                 variants={messageSlide}
-                transition={getTransition(TRANSITION.subtle, shouldReduceMotion)}
+                transition={getTransition(TRANSITION.subtle, shouldReduceMotion || false)}
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
