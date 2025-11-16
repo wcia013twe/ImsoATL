@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
-import { staggerContainer, messageSlide, getTransition, TRANSITION } from '@/utils/motionVariants';
+import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
+import { staggerContainer, messageSlide, agentStepReveal, getTransition, TRANSITION } from '@/utils/motionVariants';
 import type { ChatMessage, AgentStep, WebSocketMessage, DeploymentPlan } from '@/lib/types';
 
 const WEBSOCKET_URL = 'ws://localhost:8000/ws/chat';
@@ -350,8 +350,20 @@ export default function ChatSidebar({
                   {message.type === 'processing' && message.agentSteps && (
                     <div className="text-xs space-y-2">
                       <div className="font-semibold text-muted mb-2">🤔 Analyzing your request...</div>
-                      {message.agentSteps.map((step, idx) => (
-                        <div key={idx} className="flex items-start gap-2 pl-2 border-l-2 border-civic-blue/30">
+                      <AnimatePresence mode="popLayout">
+                        {message.agentSteps.map((step, idx) => (
+                          <motion.div
+                            key={idx}
+                            variants={agentStepReveal}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                            transition={{
+                              ...TRANSITION.subtle,
+                              delay: idx * 0.15,
+                            }}
+                            className="flex items-start gap-2 pl-2 border-l-2 border-civic-blue/30"
+                          >
                           <span className="flex-shrink-0 mt-0.5">{getAgentIcon(step.agent)}</span>
                           <div className="flex-1">
                             <div className="font-semibold text-foreground flex items-center gap-2">
@@ -363,13 +375,25 @@ export default function ChatSidebar({
                                 </svg>
                               )}
                               {step.status === 'completed' && (
-                                <span className="text-civic-green">✓</span>
+                                <motion.svg
+                                  initial={{ pathLength: 0, opacity: 0 }}
+                                  animate={{ pathLength: 1, opacity: 1 }}
+                                  transition={{ duration: 0.3, ease: "easeOut" }}
+                                  className="w-4 h-4 text-civic-green"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                >
+                                  <motion.path d="M5 13l4 4L19 7" />
+                                </motion.svg>
                               )}
                             </div>
                             <div className="text-accent mt-0.5">{step.action}</div>
                           </div>
-                        </div>
-                      ))}
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
                     </div>
                   )}
 
