@@ -249,7 +249,11 @@ export default function ChatSidebar({
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => {
+      const updated = [...prev, userMessage];
+      console.log('Added user message. Total messages:', updated.length, 'Latest:', userMessage);
+      return updated;
+    });
     setInputValue('');
     setShowSuggestions(false);
     setIsProcessing(true);
@@ -344,7 +348,9 @@ export default function ChatSidebar({
             variants={staggerContainer(0.08)}
             className="flex-1 overflow-y-auto px-6 py-4 space-y-4"
           >
-            {messages.map((message) => (
+            {messages.map((message) => {
+              console.log('Rendering message:', message.id, 'Role:', message.role, 'Type:', message.type, 'Content:', message.content.substring(0, 50));
+              return (
               <motion.div
                 key={message.id}
                 variants={messageSlide}
@@ -456,7 +462,8 @@ export default function ChatSidebar({
                   )}
                 </div>
               </motion.div>
-            ))}
+              );
+            })}
 
             {/* Typing Indicator */}
             {isProcessing && typingStep && (
