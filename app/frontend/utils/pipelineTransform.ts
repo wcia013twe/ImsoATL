@@ -41,6 +41,7 @@ interface PipelineResponse {
     total_tracts: number;
     sites: PipelineSite[];
     geometries: any;
+    all_wifi_zones?: Record<string, any[]>;
   };
 }
 
@@ -119,11 +120,17 @@ function transformSite(site: PipelineSite): RecommendedSite {
   // Calculate percentage without internet (100% - coverage)
   const no_internet_pct = 100 - site.coverage_percent;
 
+  console.log('🔄 Transforming site:', {
+    geoid: site.geoid,
+    extractedCounty: location.county,
+    finalName: `${location.county} County`
+  });
+
   return {
     tract_id: site.geoid,
-    name: `${location.county} County - Tract ${location.tract}`,
+    name: `${location.county} County`,
     state: location.state,
-    county: location.county,
+    county: `${location.county} County`,
     tract: location.tract,
     composite_score: site.impact_score,
     recommendation_tier: mapTier(site.deployment_tier),

@@ -1,449 +1,575 @@
+"""
+Gemini-powered orchestrator for chat sidebar functionality.
 
+Handles natural language queries about WiFi deployment recommendations,
+census tract details, and methodology explanations.
 """
-Agent Orchestrator
-Coordinates all specialized agents and streams progress updates
-"""
-from typing import AsyncGenerator, Dict
-import sys
+
 import os
-import logging
+import json
+import asyncio
+from typing import Dict, Any, AsyncGenerator, Optional
+import google.generativeai as genai
+from pathlib import Path
+import pandas as pd
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-# Add parent directory to path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-
-from data_sources.census_client import CensusDataClient
-from data_sources.fcc_client import FCCBroadbandClient
-from data_sources.civic_assets import CivicAssetsClient
-from agents.census_scorer import CensusScorerAgent
-from agents.fcc_filter import FCCFilterAgent
-from agents.asset_locater import AssetLocatorAgent
-from agents.proximity_ranker import ProximityRankerAgent
-from agents.synthesis_agent import SynthesisAgent
-from agents.explainer import ExplainerAgent
+from data_pipeline.run_pipeline import run_deployment_pipeline_with_location
 
 
-class AgentOrchestrator:
-    """Orchestrates multi-agent WiFi deployment planning workflow"""
+class GeminiOrchestrator:
+    """
+    Orchestrates chat queries using Gemini 2.0 Flash.
+
+    Handles:
+    - Deployment recommendation queries
+    - Census tract detail queries
+    - Methodology explanation queries
+    """
 
     def __init__(self, gemini_api_key: str, census_api_key: str):
-        # Initialize data clients
-        self.census_client = CensusDataClient(census_api_key)
-        self.fcc_client = FCCBroadbandClient()
-        self.assets_client = CivicAssetsClient()
-
-        # Initialize data-fetching agents
-        self.census_agent = CensusScorerAgent(self.census_client)
-        self.fcc_agent = FCCFilterAgent(self.fcc_client)
-        self.asset_agent = AssetLocatorAgent(self.assets_client)
-
-        # Initialize decision-making agents
-        self.synthesis_agent = SynthesisAgent()  # NEW: Dedicated synthesis pipeline
-        self.ranker_agent = ProximityRankerAgent()  # Legacy, keeping for backwards compatibility
-        self.explainer_agent = ExplainerAgent(gemini_api_key)
-
-        # Store intermediate results for dynamic pipeline
-        self.pipeline_data = {}
-
-    async def execute_census_agent(self, state_fips: str):
-        """Execute Census Data Agent"""
-        logger.info("Executing Census Data Agent")
-        yield {
-            "type": "agent_step",
-            "agent": "📊 Census Data Agent",
-            "action": "Fetching poverty, internet access, and student population data for Georgia",
-            "status": "in_progress"
-        }
-
-        scored_tracts = await self.census_agent.score_tracts_by_need(state_fips)
-        census_summary = await self.census_agent.get_summary_statistics(scored_tracts)
-
-        self.pipeline_data['scored_tracts'] = scored_tracts
-        self.pipeline_data['census_summary'] = census_summary
-
-        logger.info(f"Census analysis complete: {len(scored_tracts)} tracts analyzed")
-
-        yield {
-            "type": "agent_step",
-            "agent": "📊 Census Data Agent",
-            "action": f"Analyzed {len(scored_tracts)} census tracts. Found {census_summary.get('critical_need_tracts', 0)} critical need areas.",
-            "status": "completed",
-            "data": {
-                "tracts_analyzed": len(scored_tracts),
-                "critical_need": census_summary.get('critical_need_tracts', 0),
-                "avg_poverty_rate": census_summary.get('avg_poverty_rate', 0)
-            }
-        }
-
-    async def execute_fcc_agent(self, state_fips: str):
-        """Execute FCC Data Agent"""
-        logger.info("Executing FCC Data Agent")
-        yield {
-            "type": "agent_step",
-            "agent": "📡 FCC Data Agent",
-            "action": "Checking broadband coverage gaps (25/3 Mbps threshold)",
-            "status": "in_progress"
-        }
-
-        coverage_gaps = await self.fcc_agent.identify_coverage_gaps(state_fips)
-        scored_tracts = self.pipeline_data.get('scored_tracts', [])
-        merged_coverage = await self.fcc_agent.merge_with_census_data(coverage_gaps, scored_tracts)
-        fcc_prioritized = await self.fcc_agent.prioritize_by_impact(merged_coverage)
-        fcc_summary = await self.fcc_agent.get_coverage_summary(state_fips)
-
-        self.pipeline_data['coverage_gaps'] = coverage_gaps
-        self.pipeline_data['fcc_prioritized'] = fcc_prioritized
-        self.pipeline_data['fcc_summary'] = fcc_summary
-
-        critical_gaps = len([g for g in coverage_gaps if g.get('gap_severity') == 'critical'])
-        logger.info(f"FCC analysis complete: {len(coverage_gaps)} gaps found")
-
-        yield {
-            "type": "agent_step",
-            "agent": "📡 FCC Data Agent",
-            "action": f"Found {len(coverage_gaps)} tracts with coverage gaps. {critical_gaps} critical gaps identified.",
-            "status": "completed",
-            "data": {
-                "total_gaps": len(coverage_gaps),
-                "critical_gaps": critical_gaps
-            }
-        }
-
-    async def execute_assets_agent(self):
-        """Execute Civic Assets Agent"""
-        logger.info("Executing Civic Assets Agent")
-        yield {
-            "type": "agent_step",
-            "agent": "🏛️ Civic Assets Agent",
-            "action": "Locating libraries, community centers, schools, and transit stops",
-            "status": "in_progress"
-        }
-
-        anchor_sites = await self.asset_agent.find_candidate_anchor_sites()
-        scored_tracts = self.pipeline_data.get('scored_tracts', [])
-        high_need_tracts = scored_tracts[:20]  # Top 20 highest need
-        assets_near_need = await self.asset_agent.find_assets_near_high_need_areas(high_need_tracts)
-        asset_summary = await self.asset_agent.get_asset_coverage_summary()
-
-        self.pipeline_data['anchor_sites'] = anchor_sites
-        self.pipeline_data['asset_summary'] = asset_summary
-
-        logger.info(f"Civic assets analysis complete: {len(anchor_sites)} sites found")
-
-        yield {
-            "type": "agent_step",
-            "agent": "🏛️ Civic Assets Agent",
-            "action": f"Identified {len(anchor_sites)} potential anchor sites. {len(assets_near_need)} located near high-need areas.",
-            "status": "completed",
-            "data": {
-                "total_anchors": len(anchor_sites),
-                "near_high_need": len(assets_near_need),
-                "libraries": asset_summary.get('asset_type_breakdown', {}).get('library', 0)
-            }
-        }
-
-    async def execute_synthesis_agent(self, user_priorities: Dict[str, float] = None):
-        """Execute Synthesis/Decision Agent - combines all data sources"""
-        logger.info("Executing Synthesis Agent")
-        yield {
-            "type": "agent_step",
-            "agent": "🧠 Synthesis Agent",
-            "action": "Combining Census, FCC, and Asset data into unified recommendations",
-            "status": "in_progress"
-        }
-
-        # Gather all data from previous agents
-        census_data = self.pipeline_data.get('scored_tracts', [])
-        fcc_data = self.pipeline_data.get('fcc_prioritized', [])
-        asset_data = self.pipeline_data.get('anchor_sites', [])
-
-        logger.info(f"Synthesizing: {len(census_data)} census tracts, {len(fcc_data)} FCC records, {len(asset_data)} assets")
-
-        # Run synthesis pipeline
-        deployment_plan = await self.synthesis_agent.synthesize_recommendations(
-            census_data=census_data,
-            fcc_data=fcc_data,
-            asset_data=asset_data,
-            user_weights=user_priorities,
-            max_sites=15
-        )
-
-        self.pipeline_data['deployment_plan'] = deployment_plan
-        self.pipeline_data['ranked_sites'] = deployment_plan.get('recommended_sites', [])
-
-        logger.info(f"Synthesis complete: {deployment_plan.get('recommended_sites_count', 0)} sites recommended")
-
-        yield {
-            "type": "agent_step",
-            "agent": "🧠 Synthesis Agent",
-            "action": f"Synthesized {deployment_plan.get('recommended_sites_count', 0)} recommendations across {len(deployment_plan.get('phases', []))} deployment phases",
-            "status": "completed",
-            "data": {
-                "sites_recommended": deployment_plan.get('recommended_sites_count', 0),
-                "phases": len(deployment_plan.get('phases', [])),
-                "total_impact": deployment_plan.get('projected_impact', {})
-            }
-        }
-
-    async def execute_ranking_agent(self):
-        """Execute Legacy Ranking Agent (kept for backwards compatibility)"""
-        logger.info("Executing Ranking Agent")
-        yield {
-            "type": "agent_step",
-            "agent": "⚖️ Ranking Agent",
-            "action": "Cross-referencing all datasets and scoring candidate sites",
-            "status": "in_progress"
-        }
-
-        scored_tracts = self.pipeline_data.get('scored_tracts', [])
-        fcc_prioritized = self.pipeline_data.get('fcc_prioritized', [])
-        anchor_sites = self.pipeline_data.get('anchor_sites', [])
-
-        ranked_sites = await self.ranker_agent.rank_deployment_sites(
-            scored_tracts,
-            fcc_prioritized,
-            anchor_sites
-        )
-
-        deployment_plan = await self.ranker_agent.generate_deployment_plan(ranked_sites)
-
-        self.pipeline_data['ranked_sites'] = ranked_sites
-        self.pipeline_data['deployment_plan'] = deployment_plan
-
-        logger.info(f"Ranking complete: {len(ranked_sites)} sites ranked")
-
-        yield {
-            "type": "agent_step",
-            "agent": "⚖️ Ranking Agent",
-            "action": f"Ranked {len(ranked_sites)} sites by composite score. Top {deployment_plan.get('recommended_sites_count', 0)} sites selected.",
-            "status": "completed",
-            "data": {
-                "sites_ranked": len(ranked_sites),
-                "sites_recommended": deployment_plan.get('recommended_sites_count', 0)
-            }
-        }
-
-    async def process_query(
-        self,
-        user_message: str,
-        city: str = "Atlanta"
-    ) -> AsyncGenerator[Dict, None]:
         """
-        Process user query through multi-agent workflow with streaming updates
+        Initialize the Gemini orchestrator.
 
         Args:
-            user_message: User's question
-            city: City context (currently only Atlanta supported)
+            gemini_api_key: Google Gemini API key
+            census_api_key: Census API key (for future use)
+        """
+        if not gemini_api_key:
+            raise ValueError("Gemini API key is required")
+
+        # Configure Gemini
+        genai.configure(api_key=gemini_api_key)
+        self.model = genai.GenerativeModel("gemini-2.5-flash")
+        self.census_api_key = census_api_key
+
+        # Load Florida tract coverage data for detailed queries
+        project_root = Path(__file__).parent.parent.parent.parent
+        self.coverage_data = None
+        try:
+            coverage_path = project_root / "florida_tract_coverage.csv"
+            if coverage_path.exists():
+                self.coverage_data = pd.read_csv(coverage_path)
+        except Exception as e:
+            print(f"Warning: Could not load coverage data: {e}")
+
+    async def process_query(
+        self, user_message: str, city: str
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Process a user query and stream agent steps + final response.
+
+        Args:
+            user_message: The user's question
+            city: The city/location context (e.g., "Atlanta", "Madison County")
 
         Yields:
-            Progress updates as dicts with type, agent, message, data
+            Dict containing agent steps and final response
         """
-        # Map city to state FIPS (currently only Georgia)
-        state_fips = "13"
-
-        logger.info("="*80)
-        logger.info(f"NEW QUERY RECEIVED: '{user_message}'")
-        logger.info(f"City: {city}, State FIPS: {state_fips}")
-        logger.info("="*80)
-
         try:
-            # Check if this is a conversational query (greeting, thanks, etc.)
-            logger.info("Checking if query is conversational...")
-            is_conversational = await self.explainer_agent.is_conversational_query(user_message)
-
-            if is_conversational:
-                logger.info("Query identified as conversational - generating friendly response")
-                response = await self.explainer_agent.generate_conversational_response(user_message)
-                logger.info(f"Conversational response: {response}")
-                logger.info("="*80)
-                yield {
-                    "type": "final_response",
-                    "explanation": response,
-                    "is_conversational": True
-                }
-                return
-
-            # Step 1: Generate reasoning plan
-            logger.info("STEP 1: Query Parser - Generating reasoning plan")
+            # STEP 1: Query Understanding
             yield {
                 "type": "agent_step",
-                "agent": "🔍 Query Parser",
-                "action": "Analyzing your question and planning approach...",
-                "status": "in_progress"
+                "agent": "Query Parser",
+                "action": "Understanding your question...",
+                "status": "in_progress",
             }
 
-            reasoning_steps = await self.explainer_agent.generate_reasoning_steps(user_message)
-            logger.info(f"Generated {len(reasoning_steps)} reasoning steps")
-            for i, step in enumerate(reasoning_steps, 1):
-                logger.info(f"  Step {i}: {step.get('agent')} - {step.get('action')}")
+            # Use Gemini to classify the query intent
+            intent = await self._classify_intent(user_message, city)
 
-            # Show the planned steps
-            steps_summary = " → ".join([step.get('agent', 'Agent') for step in reasoning_steps])
             yield {
                 "type": "agent_step",
-                "agent": "🔍 Query Parser",
-                "action": f"Plan: {steps_summary}",
+                "agent": "Query Parser",
+                "action": f"Identified intent: {intent['type']}",
                 "status": "completed",
-                "data": {"steps": reasoning_steps}
-            }
-            logger.info(f"Query parsing complete. Plan: {steps_summary}")
-
-            # Show orchestrator planning message
-            yield {
-                "type": "agent_step",
-                "agent": "🤖 Orchestrator",
-                "action": "Executing comprehensive data pipeline: Census → FCC → Assets → Synthesis",
-                "status": "in_progress"
             }
 
-            # Reset pipeline data for this query
-            self.pipeline_data = {}
+            # STEP 2: Data Processing based on intent
+            if intent["type"] == "deployment_recommendation":
+                async for step in self._handle_deployment_query(
+                    user_message, city, intent
+                ):
+                    yield step
 
-            # OPTION 1: Always run all 4 agents for consistent, comprehensive analysis
-            # This ensures all data sources are available for any query type
+            elif intent["type"] == "tract_details":
+                async for step in self._handle_tract_details_query(
+                    user_message, intent
+                ):
+                    yield step
 
-            # Step 2: Execute Census Data Agent
-            logger.info("STEP 2: Executing Census Data Agent")
-            async for update in self.execute_census_agent(state_fips):
-                yield update
+            elif intent["type"] == "methodology":
+                async for step in self._handle_methodology_query(user_message, intent):
+                    yield step
 
-            yield {
-                "type": "agent_step",
-                "agent": "🤖 Orchestrator",
-                "action": "Census analysis complete. Moving to broadband coverage analysis...",
-                "status": "in_progress"
-            }
-
-            # Step 3: Execute FCC Data Agent
-            logger.info("STEP 3: Executing FCC Data Agent")
-            async for update in self.execute_fcc_agent(state_fips):
-                yield update
-
-            yield {
-                "type": "agent_step",
-                "agent": "🤖 Orchestrator",
-                "action": "Coverage analysis complete. Locating civic anchor sites...",
-                "status": "in_progress"
-            }
-
-            # Step 4: Execute Civic Assets Agent
-            logger.info("STEP 4: Executing Civic Assets Agent")
-            async for update in self.execute_assets_agent():
-                yield update
-
-            yield {
-                "type": "agent_step",
-                "agent": "🤖 Orchestrator",
-                "action": "Asset mapping complete. Synthesizing recommendations...",
-                "status": "in_progress"
-            }
-
-            # Step 5: Execute Synthesis Agent
-            logger.info("STEP 5: Executing Synthesis Agent")
-            async for update in self.execute_synthesis_agent():
-                yield update
-
-            yield {
-                "type": "agent_step",
-                "agent": "🤖 Orchestrator",
-                "action": "Data synthesis complete. Preparing final explanation...",
-                "status": "completed"
-            }
-
-            # Generate explanation if we have deployment plan
-            deployment_plan = self.pipeline_data.get('deployment_plan')
-            if deployment_plan:
-                logger.info("Generating explanation")
-                yield {
-                    "type": "agent_step",
-                    "agent": "✨ Explainer Agent",
-                    "action": "Generating human-readable explanation",
-                    "status": "in_progress"
-                }
-
-                explanation = await self.explainer_agent.explain_recommendation(
-                    deployment_plan,
-                    user_message
-                )
-
-                census_summary = self.pipeline_data.get('census_summary', {})
-                fcc_summary = self.pipeline_data.get('fcc_summary', {})
-                asset_summary = self.pipeline_data.get('asset_summary', {})
-
-                data_synthesis_explanation = await self.explainer_agent.explain_data_synthesis(
-                    census_summary,
-                    fcc_summary,
-                    asset_summary
-                )
-
-                yield {
-                    "type": "agent_step",
-                    "agent": "✨ Explainer Agent",
-                    "action": "Analysis complete",
-                    "status": "completed"
-                }
-
-                logger.info("="*80)
-                logger.info("QUERY PROCESSING COMPLETE")
-                logger.info("="*80)
-
-                # Final response
-                yield {
-                    "type": "final_response",
-                    "explanation": explanation,
-                    "data_synthesis": data_synthesis_explanation,
-                    "deployment_plan": deployment_plan,
-                    "summaries": {
-                        "census": census_summary,
-                        "fcc": fcc_summary,
-                        "assets": asset_summary
-                    }
-                }
             else:
-                # Query didn't need full deployment plan - just provide summary
-                logger.info("Query completed without full deployment plan")
-
-                # Generate simpler explanation based on available data
-                summary_text = "I've analyzed the available data based on your query. "
-
-                if 'census_summary' in self.pipeline_data:
-                    census = self.pipeline_data['census_summary']
-                    summary_text += f"Census analysis found {census.get('critical_need_tracts', 0)} critical need areas. "
-
-                if 'fcc_summary' in self.pipeline_data:
-                    fcc = self.pipeline_data['fcc_summary']
-                    summary_text += f"FCC data shows {fcc.get('tracts_with_gaps', 0)} areas with coverage gaps. "
-
-                if 'asset_summary' in self.pipeline_data:
-                    assets = self.pipeline_data['asset_summary']
-                    summary_text += f"Found {assets.get('total_assets', 0)} civic assets that could serve as anchor points."
-
-                yield {
-                    "type": "final_response",
-                    "explanation": summary_text,
-                    "summaries": {
-                        "census": self.pipeline_data.get('census_summary', {}),
-                        "fcc": self.pipeline_data.get('fcc_summary', {}),
-                        "assets": self.pipeline_data.get('asset_summary', {})
-                    }
-                }
+                # General query - provide helpful response
+                async for step in self._handle_general_query(user_message, city):
+                    yield step
 
         except Exception as e:
-            logger.error("="*80)
-            logger.error(f"ERROR during query processing: {str(e)}")
-            logger.error("="*80)
-            import traceback
-            logger.error(traceback.format_exc())
+            yield {"type": "error", "message": f"Failed to process query: {str(e)}"}
+
+    async def _classify_intent(self, user_message: str, city: str) -> Dict[str, Any]:
+        """
+        Use Gemini to classify the user's intent.
+
+        Returns:
+            Dict with 'type' and extracted parameters
+        """
+        prompt = f"""Analyze this user query and classify its intent.
+
+User query: "{user_message}"
+Location context: {city}
+
+Classify into ONE of these categories:
+1. deployment_recommendation - ONLY if user explicitly asks about WHERE to deploy WiFi, which sites to prioritize, or requests deployment recommendations for a SPECIFIC location
+2. tract_details - User asks about a specific census tract's details (must mention tract or GEOID)
+3. methodology - User asks how rankings work, what scores mean, or methodology questions
+4. general - Greetings, general conversation, questions without a specific location, or unclear requests
+
+IMPORTANT:
+- Greetings like "hello", "hi", "I'm ready" should be "general"
+- Questions without a specific location should be "general"
+- Only classify as deployment_recommendation if a specific location is mentioned or implied
+
+Also extract any relevant parameters (set to null if not mentioned):
+- location_name (city/county name if explicitly mentioned, otherwise null)
+- location_type (state or city)
+- tract_id (GEOID if asking about specific tract)
+
+Respond ONLY with valid JSON in this format:
+{{
+  "type": "general",
+  "location_name": null
+}}
+
+OR if location is mentioned:
+{{
+  "type": "deployment_recommendation",
+  "location_name": "Madison County",
+  "location_type": "city",
+  "state_name": "Florida"
+}}"""
+
+        # Run Gemini classification
+        response = await asyncio.to_thread(lambda: self.model.generate_content(prompt))
+
+        # Parse JSON response
+        try:
+            # Extract JSON from response
+            response_text = response.text.strip()
+            # Remove markdown code blocks if present
+            if response_text.startswith("```"):
+                response_text = response_text.split("```")[1]
+                if response_text.startswith("json"):
+                    response_text = response_text[4:]
+
+            intent = json.loads(response_text.strip())
+            return intent
+        except json.JSONDecodeError:
+            # Fallback: assume general query if parsing fails
+            return {
+                "type": "general",
+                "location_name": None,
+            }
+
+    async def _handle_deployment_query(
+        self, user_message: str, city: str, intent: Dict[str, Any]
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Handle deployment recommendation queries."""
+
+        yield {
+            "type": "agent_step",
+            "agent": "Data Pipeline",
+            "action": f"Analyzing deployment sites for {city}...",
+            "status": "in_progress",
+        }
+
+        # Extract location parameters
+        location_name = intent.get("location_name", city)
+        location_type = intent.get("location_type", "city")
+        state_name = intent.get("state_name", "Florida")
+
+        # Validate location_name
+        if not location_name or location_name == "None":
             yield {
                 "type": "error",
-                "message": f"An error occurred during analysis: {str(e)}"
+                "message": "Please specify a location (city or county) for deployment recommendations. For example: 'Where should we deploy WiFi in Madison County?'"
             }
+            return
+
+        # Run the deployment pipeline
+        try:
+            slug = location_name.lower().replace(" ", "-") if location_name else "unknown"
+            pipeline_result = await asyncio.to_thread(
+                lambda: run_deployment_pipeline_with_location(
+                    location_name=location_name,
+                    location_type=location_type,
+                    state_name=state_name,
+                    slug=slug,
+                )
+            )
+
+            total_sites = len(pipeline_result.get("sites", []))
+
+            yield {
+                "type": "agent_step",
+                "agent": "Data Pipeline",
+                "action": f"Found {total_sites} deployment sites",
+                "status": "completed",
+            }
+
+        except Exception as e:
+            yield {"type": "error", "message": f"Pipeline execution failed: {str(e)}"}
+            return
+
+        # STEP 3: Synthesis with Gemini
+        yield {
+            "type": "agent_step",
+            "agent": "Synthesis Agent",
+            "action": "Generating explanation...",
+            "status": "in_progress",
+        }
+
+        # Generate human-readable explanation
+        explanation = await self._generate_deployment_explanation(
+            user_message, pipeline_result
+        )
+
+        yield {
+            "type": "agent_step",
+            "agent": "Synthesis Agent",
+            "action": "Explanation complete",
+            "status": "completed",
+        }
+
+        # Format deployment plan for frontend
+        deployment_plan = self._format_deployment_plan(pipeline_result)
+
+        # FINAL RESPONSE
+        yield {
+            "type": "final_response",
+            "explanation": explanation,
+            "deployment_plan": deployment_plan,
+            "tract_geometries": pipeline_result.get("geometries"),
+            "all_wifi_zones": pipeline_result.get("all_wifi_zones"),
+        }
+
+    async def _handle_tract_details_query(
+        self, user_message: str, intent: Dict[str, Any]
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Handle census tract detail queries."""
+
+        yield {
+            "type": "agent_step",
+            "agent": "Data Pipeline",
+            "action": "Fetching tract details...",
+            "status": "in_progress",
+        }
+
+        # Extract tract ID if provided
+        tract_id = intent.get("tract_id")
+
+        # Search for tract in coverage data
+        tract_data = None
+        if self.coverage_data is not None:
+            if tract_id:
+                tract_data = self.coverage_data[
+                    self.coverage_data["geoid"].astype(str) == str(tract_id)
+                ]
+            else:
+                # Try to extract from query using Gemini
+                # For now, return general info
+                pass
+
+        yield {
+            "type": "agent_step",
+            "agent": "Data Pipeline",
+            "action": "Tract data retrieved",
+            "status": "completed",
+        }
+
+        # Generate explanation
+        yield {
+            "type": "agent_step",
+            "agent": "Synthesis Agent",
+            "action": "Analyzing tract details...",
+            "status": "in_progress",
+        }
+
+        if tract_data is not None and len(tract_data) > 0:
+            explanation = await self._generate_tract_explanation(
+                user_message, tract_data.iloc[0].to_dict()
+            )
+        else:
+            explanation = "I don't have specific tract data available for that query. Please try asking about deployment recommendations for a specific location, or provide a valid tract GEOID."
+
+        yield {
+            "type": "agent_step",
+            "agent": "Synthesis Agent",
+            "action": "Analysis complete",
+            "status": "completed",
+        }
+
+        yield {"type": "final_response", "explanation": explanation}
+
+    async def _handle_methodology_query(
+        self, user_message: str, intent: Dict[str, Any]
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Handle methodology explanation queries."""
+
+        yield {
+            "type": "agent_step",
+            "agent": "Synthesis Agent",
+            "action": "Preparing methodology explanation...",
+            "status": "in_progress",
+        }
+
+        # Generate explanation about methodology
+        methodology_context = """
+Our WiFi deployment recommendation system uses a data-driven approach:
+
+**Impact Score Calculation:**
+- 40% Population Score: Prioritizes areas with more residents
+- 40% Poverty Score: Prioritizes underserved communities with higher poverty rates
+- 20% Income Score: Considers median household income
+
+**Deployment Tiers:**
+- Tier 1 (Critical): Ranks 1-10 - Highest priority sites
+- Tier 2 (High): Ranks 11-25 - High priority sites
+- Tier 3 (Medium): Ranks 26-40 - Medium priority sites
+- Tier 4 (Low): Ranks 41+ - Lower priority sites
+
+**Data Sources:**
+- Census demographic data (population, poverty rate, median income)
+- FCC broadband coverage data
+- OpenStreetMap civic assets (schools, libraries, community centers, transit)
+
+**WiFi Zone Generation:**
+- Each tract gets 3 WiFi deployment points in a triangular pattern
+- Zones are positioned ~0.5km from the tract centroid
+- All zones are validated to be within tract boundaries
+        """
+
+        explanation = await self._generate_methodology_explanation(
+            user_message, methodology_context
+        )
+
+        yield {
+            "type": "agent_step",
+            "agent": "Synthesis Agent",
+            "action": "Explanation ready",
+            "status": "completed",
+        }
+
+        yield {"type": "final_response", "explanation": explanation}
+
+    async def _handle_general_query(
+        self, user_message: str, city: str
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Handle general queries."""
+
+        yield {
+            "type": "agent_step",
+            "agent": "Synthesis Agent",
+            "action": "Processing your question...",
+            "status": "in_progress",
+        }
+
+        prompt = f"""You are an AI assistant helping with WiFi deployment planning for underserved communities.
+
+User asked: "{user_message}"
+Context: {city}
+
+Provide a helpful response. If they're asking about deployment recommendations, tract details, or methodology, guide them to ask more specific questions.
+
+Be concise and helpful."""
+
+        response = await asyncio.to_thread(lambda: self.model.generate_content(prompt))
+
+        yield {
+            "type": "agent_step",
+            "agent": "Synthesis Agent",
+            "action": "Response ready",
+            "status": "completed",
+        }
+
+        yield {"type": "final_response", "explanation": response.text}
+
+    async def _generate_deployment_explanation(
+        self, user_message: str, pipeline_result: Dict[str, Any]
+    ) -> str:
+        """Generate human-readable explanation of deployment results."""
+
+        sites = pipeline_result.get("sites", [])
+        total_sites = len(sites)
+
+        # Get top 3 sites for explanation
+        top_sites = sites[:3] if len(sites) >= 3 else sites
+
+        # Build summary
+        summary = f"Based on your query, I've analyzed deployment opportunities and found {total_sites} potential sites.\n\n"
+
+        if top_sites:
+            summary += "**Top Priority Sites:**\n\n"
+            for i, site in enumerate(top_sites, 1):
+                impact = site.get("impact_score", 0)
+                pop = site.get("population", "N/A")
+                poverty = site.get("poverty_rate", "N/A")
+                summary += f"{i}. Census Tract {site.get('geoid', 'Unknown')}\n"
+                summary += f"   - Impact Score: {impact:.1f}\n"
+                summary += f"   - Population: {pop:,}\n"
+                summary += f"   - Poverty Rate: {poverty}%\n\n"
+
+        # Use Gemini to enhance the explanation
+        prompt = f"""Enhance this WiFi deployment summary with a brief, conversational explanation.
+
+User asked: "{user_message}"
+
+Summary: {summary}
+
+Make it conversational (2-3 sentences) explaining why these sites were chosen and what impact they could have. Focus on serving underserved communities."""
+
+        try:
+            response = await asyncio.to_thread(
+                lambda: self.model.generate_content(prompt)
+            )
+            return f"{summary}\n{response.text}"
+        except:
+            return summary
+
+    async def _generate_tract_explanation(
+        self, user_message: str, tract_data: Dict[str, Any]
+    ) -> str:
+        """Generate explanation about a specific census tract."""
+
+        prompt = f"""Provide a brief explanation about this census tract.
+
+User asked: "{user_message}"
+
+Tract Data:
+- GEOID: {tract_data.get('geoid')}
+- Coverage: {tract_data.get('coverage_percent', 0):.1f}%
+- Population: {tract_data.get('population', 0):,}
+- Median Income: ${tract_data.get('median_income', 0):,}
+- Poverty Rate: {tract_data.get('poverty_rate', 0):.1f}%
+- Schools: {tract_data.get('schools', 0)}
+- Libraries: {tract_data.get('libraries', 0)}
+- Community Centers: {tract_data.get('community_centers', 0)}
+- Transit Stops: {tract_data.get('transit_stops', 0)}
+
+Write 2-3 sentences highlighting key demographics and why this tract might be prioritized for WiFi deployment."""
+
+        response = await asyncio.to_thread(lambda: self.model.generate_content(prompt))
+        return response.text
+
+    async def _generate_methodology_explanation(
+        self, user_message: str, methodology_context: str
+    ) -> str:
+        """Generate explanation about the methodology."""
+
+        prompt = f"""Answer this question about our WiFi deployment methodology.
+
+User asked: "{user_message}"
+
+Methodology:
+{methodology_context}
+
+Provide a clear, concise answer (2-4 sentences) addressing their specific question."""
+
+        response = await asyncio.to_thread(lambda: self.model.generate_content(prompt))
+        return response.text
+
+    def _extract_county_from_geoid(self, geoid: str) -> str:
+        """Extract county name from census tract GEOID."""
+        if not geoid or len(geoid) < 5:
+            return "Unknown County"
+
+        state_fips = geoid[:2]
+        county_fips = geoid[2:5]
+
+        # Florida county FIPS codes
+        florida_counties = {
+            '001': 'Alachua', '003': 'Baker', '005': 'Bay', '007': 'Bradford',
+            '009': 'Brevard', '011': 'Broward', '013': 'Calhoun', '015': 'Charlotte',
+            '017': 'Citrus', '019': 'Clay', '021': 'Collier', '023': 'Columbia',
+            '027': 'DeSoto', '029': 'Dixie', '031': 'Duval', '033': 'Escambia',
+            '035': 'Flagler', '037': 'Franklin', '039': 'Gadsden', '041': 'Gilchrist',
+            '043': 'Glades', '045': 'Gulf', '047': 'Hamilton', '049': 'Hardee',
+            '051': 'Hendry', '053': 'Hernando', '055': 'Highlands', '057': 'Hillsborough',
+            '059': 'Holmes', '061': 'Indian River', '063': 'Jackson', '065': 'Jefferson',
+            '067': 'Lafayette', '069': 'Lake', '071': 'Lee', '073': 'Leon',
+            '075': 'Levy', '077': 'Liberty', '079': 'Madison', '081': 'Manatee',
+            '083': 'Marion', '085': 'Martin', '086': 'Miami-Dade', '087': 'Monroe',
+            '089': 'Nassau', '091': 'Okaloosa', '093': 'Okeechobee', '095': 'Orange',
+            '097': 'Osceola', '099': 'Palm Beach', '101': 'Pasco', '103': 'Pinellas',
+            '105': 'Polk', '107': 'Putnam', '109': 'St. Johns', '111': 'St. Lucie',
+            '113': 'Santa Rosa', '115': 'Sarasota', '117': 'Seminole', '119': 'Sumter',
+            '121': 'Suwannee', '123': 'Taylor', '125': 'Union', '127': 'Volusia',
+            '129': 'Wakulla', '131': 'Walton', '133': 'Washington',
+        }
+
+        if state_fips == '12':  # Florida
+            return florida_counties.get(county_fips, f"County {county_fips}")
+
+        return f"County {county_fips}"
+
+    def _format_deployment_plan(
+        self, pipeline_result: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Format pipeline result into deployment plan for frontend."""
+
+        sites = pipeline_result.get("sites", [])
+
+        # Calculate tier-based deployment plan
+        formatted_sites = []
+        for site in sites:
+            geoid = site.get("geoid", "")
+            county_name = self._extract_county_from_geoid(geoid)
+
+            formatted_sites.append(
+                {
+                    "tract_id": geoid,
+                    "name": f"{county_name} County",
+                    "state": "Florida",
+                    "county": f"{county_name} County",
+                    "tract": geoid[5:] if len(geoid) > 5 else "",
+                    "composite_score": site.get("impact_score", 0),
+                    "recommendation_tier": self._map_tier(site.get("deployment_tier")),
+                    "poverty_rate": site.get("poverty_rate", 0),
+                    "no_internet_pct": 100 - site.get("coverage_percent", 0),
+                    "total_population": site.get("population", 0),
+                    "nearby_anchor_count": site.get("total_assets", 0),
+                    "centroid": site.get("centroid", {}),
+                }
+            )
+
+        # Calculate projected impact
+        total_pop = sum(s.get("population", 0) for s in sites)
+        poverty_served = sum(
+            s.get("population", 0) * s.get("poverty_rate", 0) / 100 for s in sites
+        )
+
+        return {
+            "recommended_sites_count": len(formatted_sites),
+            "recommended_sites": formatted_sites,
+            "projected_impact": {
+                "total_population_served": int(total_pop),
+                "residents_below_poverty_served": int(poverty_served),
+                "households_without_internet_served": int(total_pop * 0.15),  # Estimate
+            },
+        }
+
+    def _map_tier(self, backend_tier: str) -> str:
+        """Map backend tier to frontend tier."""
+        tier_map = {
+            "tier_1_critical": "top_priority",
+            "tier_2_high": "high_priority",
+            "tier_3_medium": "medium_priority",
+            "tier_4_low": "low_priority",
+        }
+        return tier_map.get(backend_tier, "low_priority")
+
+
+# Alias for backwards compatibility with existing main.py import
+AgentOrchestrator = GeminiOrchestrator

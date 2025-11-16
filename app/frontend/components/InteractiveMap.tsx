@@ -49,6 +49,7 @@ export default function InteractiveMap({
   mapRefProp,
   tractGeometries,
   allWifiZones,
+  onTractClick,
 }: {
   cityCenter?: [number, number];
   cityName?: string;
@@ -61,9 +62,11 @@ export default function InteractiveMap({
   } | null>;
   tractGeometries?: any; // GeoJSON FeatureCollection from pipeline
   allWifiZones?: Record<string, any[]>; // Map of geoid -> WiFi zones for all tracts
+  onTractClick?: (tractId: string, tractData: any) => void;
 }) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const currentPopup = useRef<mapboxgl.Popup | null>(null);
   const [activeLayers, setActiveLayers] = useState<string[]>([
     "city-boundary",
   ]);
@@ -79,6 +82,19 @@ export default function InteractiveMap({
     MAPBOX_CONFIG.atlantaCenter.lat,
   ];
   const mapZoom = cityCenter ? 11.5 : MAPBOX_CONFIG.atlantaCenter.zoom;
+
+  // Helper function to close current popup and open a new one
+  const showPopup = (popup: mapboxgl.Popup) => {
+    // Close any existing popup
+    if (currentPopup.current) {
+      currentPopup.current.remove();
+    }
+    // Store and show the new popup
+    currentPopup.current = popup;
+    if (map.current) {
+      popup.addTo(map.current);
+    }
+  };
 
   // Fetch boundary data when location changes
   useEffect(() => {
@@ -111,12 +127,13 @@ export default function InteractiveMap({
           console.log('Show recommendations:', plan);
         },
         centerOnSite: (siteIndex: number) => {
+          console.log('centerOnSite called with index:', siteIndex, 'map:', !!map.current, 'recommendations:', !!recommendations);
           if (map.current && recommendations) {
             const site = recommendations.recommended_sites[siteIndex];
             const tractId = site.tract_id;
 
             // Select the tract to show polygon
-            console.log('🎯 Selecting tract from sidebar click:', tractId);
+            console.log('🎯 Selecting tract from sidebar click:', tractId, 'site:', site);
             setSelectedTractId(tractId);
 
             // Set selected site coordinates for WiFi coverage circle
@@ -172,12 +189,13 @@ export default function InteractiveMap({
             setTimeout(() => {
               if (!map.current || !siteCoordinates[siteIndex]) return;
 
-              new mapboxgl.Popup()
+              const siteName = site.county || site.name || location?.name || `Site ${siteIndex + 1}`;
+              const popup = new mapboxgl.Popup()
                 .setLngLat(siteCoordinates[siteIndex])
                 .setHTML(
                   `
                   <div style="font-family: system-ui; padding: 4px;">
-                    <strong style="color: #1f2937; font-size: 14px;">${site.name || `Site ${siteIndex + 1}`}</strong><br/>
+                    <strong style="color: #1f2937; font-size: 14px;">${siteName}</strong><br/>
                     <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
                       <div><strong>Score:</strong> ${site.composite_score}/100</div>
                       <div><strong>Poverty Rate:</strong> ${site.poverty_rate.toFixed(2)}%</div>
@@ -186,8 +204,8 @@ export default function InteractiveMap({
                     </div>
                   </div>
                 `
-                )
-                .addTo(map.current);
+                );
+              showPopup(popup);
             }, 800);
           }
         }
@@ -354,7 +372,7 @@ export default function InteractiveMap({
           essential: true
         });
 
-        new mapboxgl.Popup()
+        const popup = new mapboxgl.Popup()
           .setLngLat(e.lngLat)
           .setHTML(
             `
@@ -362,8 +380,8 @@ export default function InteractiveMap({
             Reach: ${feature.properties?.reach} residents<br/>
             Equity Score: ${feature.properties?.equityScore}
           `
-          )
-          .addTo(map.current);
+          );
+        showPopup(popup);
       });
 
       // Cursor handlers
@@ -424,6 +442,7 @@ export default function InteractiveMap({
           },
           properties: {
             name: site.name || `Site ${index + 1}`,
+            county: site.county,
             composite_score: site.composite_score,
             poverty_rate: site.poverty_rate,
             no_internet_pct: site.no_internet_pct,
@@ -546,12 +565,13 @@ export default function InteractiveMap({
         // Show popup after zoom animation
         setTimeout(() => {
           if (!map.current) return;
-          new mapboxgl.Popup()
+          const siteName = props?.county || props?.name || location?.name || 'Site';
+          const popup = new mapboxgl.Popup()
             .setLngLat(e.lngLat)
             .setHTML(
               `
               <div style="font-family: system-ui; padding: 4px;">
-                <strong style="color: #1f2937; font-size: 14px;">${props?.name}</strong><br/>
+                <strong style="color: #1f2937; font-size: 14px;">${siteName}</strong><br/>
                 <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
                   <div><strong>Score:</strong> ${props?.composite_score}/100</div>
                   <div><strong>Poverty Rate:</strong> ${props?.poverty_rate}%</div>
@@ -560,8 +580,8 @@ export default function InteractiveMap({
                 </div>
               </div>
             `
-            )
-            .addTo(map.current);
+            );
+          showPopup(popup);
         }, 800);
       });
 
@@ -865,7 +885,7 @@ export default function InteractiveMap({
       if (!e.features || !e.features[0] || !map.current) return;
       const props = e.features[0].properties;
 
-      new mapboxgl.Popup()
+      const popup = new mapboxgl.Popup()
         .setLngLat(e.lngLat)
         .setHTML(
           `
@@ -877,8 +897,8 @@ export default function InteractiveMap({
             </div>
           </div>
         `
-        )
-        .addTo(map.current);
+        );
+      showPopup(popup);
     });
 
     // Add hover effect
@@ -912,12 +932,13 @@ export default function InteractiveMap({
 
         // Show popup with tract info
         const props = feature.properties;
-        new mapboxgl.Popup()
+        const locationName = location?.name || 'Unknown Location';
+        const popup = new mapboxgl.Popup()
           .setLngLat(e.lngLat)
           .setHTML(
             `
             <div style="font-family: system-ui; padding: 8px; min-width: 200px;">
-              <strong style="color: #1f2937; font-size: 14px;">Census Tract ${tractId}</strong>
+              <strong style="color: #1f2937; font-size: 14px;">${locationName}</strong>
               <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
                 <div style="margin: 4px 0;"><strong>Coverage:</strong> ${props?.coverage_percent?.toFixed(1) || 0}%</div>
                 <div style="margin: 4px 0;"><strong>Population:</strong> ${props?.population?.toLocaleString() || 'N/A'}</div>
@@ -927,8 +948,8 @@ export default function InteractiveMap({
               </div>
             </div>
           `
-          )
-          .addTo(map.current!);
+          );
+        showPopup(popup);
       }
     };
 

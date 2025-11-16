@@ -71,7 +71,7 @@ function getIcon(site: RecommendedSite): string {
     if (firstAsset.type === 'library') return '📚';
     if (firstAsset.type === 'community_center') return '🏛️';
     if (firstAsset.type === 'school') return '🏫';
-    if (firstAsset.type === 'transit') return '🚇';
+    if (firstAsset.type === 'transit_stop') return '🚇';
   }
   return '📍'; // Default location pin
 }
@@ -80,7 +80,7 @@ export default function SiteCard({ rank, site, onClick }: SiteCardProps) {
   const tier = tierConfig[site.recommendation_tier] || tierConfig.low_priority;
   const reasoning = generateReasoning(site);
   const icon = getIcon(site);
-  const displayName = site.name || `Census Tract ${site.tract_id}`;
+  const displayName = site.county || site.name || `Site ${rank}`;
 
   return (
     <div
@@ -108,9 +108,6 @@ export default function SiteCard({ rank, site, onClick }: SiteCardProps) {
                   style={{ backgroundColor: `${tier.color}20` }}
                 >
                   {tier.label} Priority
-                </span>
-                <span className="text-xs text-muted">
-                  Tract {site.tract_id}
                 </span>
               </div>
             </div>

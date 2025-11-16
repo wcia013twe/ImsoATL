@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
+import { staggerContainer, messageSlide, agentStepReveal, sidebarSlide, getTransition, TRANSITION, SPRING } from '@/utils/motionVariants';
+import { useAnimationContext } from '@/contexts/AnimationContext';
 import type { ChatMessage, AgentStep, WebSocketMessage, DeploymentPlan } from '@/lib/types';
 
 const WEBSOCKET_URL = 'ws://localhost:8000/ws/chat';
@@ -46,7 +49,7 @@ export default function ChatSidebar({
   isOpen: boolean;
   onClose: () => void;
   cityName?: string;
-  onRecommendationsReceived?: (plan: DeploymentPlan) => void;
+  onRecommendationsReceived?: (plan: DeploymentPlan, tractGeometries?: any, allWifiZones?: any) => void;
   suggestedPrompt?: string;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(getInitialMessages);
@@ -58,6 +61,8 @@ export default function ChatSidebar({
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const shouldReduceMotion = useReducedMotion();
+  const { triggerSiteReveal, triggerMapUpdate } = useAnimationContext();
 
   // Update input when suggestedPrompt changes
   useEffect(() => {
@@ -180,7 +185,18 @@ export default function ChatSidebar({
 
         // Notify parent component of recommendations
         if (data.deployment_plan && onRecommendationsReceived) {
-          onRecommendationsReceived(data.deployment_plan);
+          onRecommendationsReceived(
+            data.deployment_plan,
+            data.tract_geometries,
+            data.all_wifi_zones
+          );
+
+          // Trigger coordinated animation cascade: Chat completes → Sites reveal → Map updates
+          // Add slight delay to let final message settle
+          setTimeout(() => {
+            triggerSiteReveal(); // Triggers site card stagger in RecommendationsSidebar
+            triggerMapUpdate();  // Triggers map marker animations
+          }, 200);
         }
 
         ws.close();
@@ -237,7 +253,11 @@ export default function ChatSidebar({
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => {
+      const updated = [...prev, userMessage];
+      console.log('Added user message. Total messages:', updated.length, 'Latest:', userMessage);
+      return updated;
+    });
     setInputValue('');
     setShowSuggestions(false);
     setIsProcessing(true);
@@ -286,10 +306,15 @@ export default function ChatSidebar({
   return (
     <>
       {/* Sidebar */}
-      <div
-        className={`fixed top-0 left-0 h-full w-[32rem] bg-surface border-r border-border z-50 transform transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+      <motion.div
+        initial={false}
+        animate={isOpen ? 'visible' : 'hidden'}
+        variants={sidebarSlide('left')}
+        transition={{
+          type: 'spring',
+          ...SPRING.snappy,
+        }}
+        className="fixed top-0 left-0 h-full w-[32rem] bg-surface border-r border-border z-50"
       >
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -322,9 +347,16 @@ export default function ChatSidebar({
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {messages.map((message) => (
-              <div
+            <AnimatePresence initial={false}>
+            {messages.map((message) => {
+              console.log('Rendering message:', message.id, 'Role:', message.role, 'Type:', message.type, 'Content:', message.content.substring(0, 50));
+              return (
+              <motion.div
                 key={message.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={getTransition(TRANSITION.subtle, shouldReduceMotion || false)}
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
@@ -340,8 +372,20 @@ export default function ChatSidebar({
                   {message.type === 'processing' && message.agentSteps && (
                     <div className="text-xs space-y-2">
                       <div className="font-semibold text-muted mb-2">🤔 Analyzing your request...</div>
-                      {message.agentSteps.map((step, idx) => (
-                        <div key={idx} className="flex items-start gap-2 pl-2 border-l-2 border-civic-blue/30">
+                      <AnimatePresence mode="popLayout">
+                        {message.agentSteps.map((step, idx) => (
+                          <motion.div
+                            key={idx}
+                            variants={agentStepReveal}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                            transition={{
+                              ...TRANSITION.subtle,
+                              delay: idx * 0.15,
+                            }}
+                            className="flex items-start gap-2 pl-2 border-l-2 border-civic-blue/30"
+                          >
                           <span className="flex-shrink-0 mt-0.5">{getAgentIcon(step.agent)}</span>
                           <div className="flex-1">
                             <div className="font-semibold text-foreground flex items-center gap-2">
@@ -353,13 +397,25 @@ export default function ChatSidebar({
                                 </svg>
                               )}
                               {step.status === 'completed' && (
-                                <span className="text-civic-green">✓</span>
+                                <motion.svg
+                                  initial={{ pathLength: 0, opacity: 0 }}
+                                  animate={{ pathLength: 1, opacity: 1 }}
+                                  transition={{ duration: 0.3, ease: "easeOut" }}
+                                  className="w-4 h-4 text-civic-green"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                >
+                                  <motion.path d="M5 13l4 4L19 7" />
+                                </motion.svg>
                               )}
                             </div>
                             <div className="text-accent mt-0.5">{step.action}</div>
                           </div>
-                        </div>
-                      ))}
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
                     </div>
                   )}
 
@@ -407,8 +463,10 @@ export default function ChatSidebar({
                     </>
                   )}
                 </div>
-              </div>
-            ))}
+              </motion.div>
+              );
+            })}
+            </AnimatePresence>
 
             {/* Typing Indicator */}
             {isProcessing && typingStep && (
@@ -436,22 +494,33 @@ export default function ChatSidebar({
 
           {/* Suggestions */}
           {showSuggestions && messages.length === 1 && (
-            <div className="px-6 pb-4">
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={staggerContainer(0.06)}
+              className="px-6 pb-4"
+            >
               <div className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
                 Suggested Questions
               </div>
               <div className="space-y-2">
                 {suggestions.map((suggestion, index) => (
-                  <button
+                  <motion.button
                     key={index}
+                    variants={{
+                      hidden: { scale: 0.95, opacity: 0 },
+                      visible: { scale: 1, opacity: 1 },
+                    }}
+                    whileHover={shouldReduceMotion ? {} : { scale: 1.02, y: -2 }}
+                    whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
                     onClick={() => handleSendMessage(suggestion)}
                     className="w-full text-left px-3 py-2 rounded-lg border border-border text-sm text-accent hover:bg-surface-hover hover:text-foreground transition-colors"
                   >
                     {suggestion}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* Input */}
@@ -479,7 +548,7 @@ export default function ChatSidebar({
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
     </>
   );
 }

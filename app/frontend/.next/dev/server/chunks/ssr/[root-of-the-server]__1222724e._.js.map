@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["file:///Users/wes/Desktop/Project/ImsoATL/app/frontend/app/page.tsx"],"sourcesContent":["import LandingPage from '@/components/LandingPage';\nexport default function Home() {\n  return <LandingPage />;\n}\n"],"names":[],"mappings":";;;;;;;;;;;;AACe,SAAS;IACtB,qBAAO,8OAAC;;;;;AACV"}}]
-}

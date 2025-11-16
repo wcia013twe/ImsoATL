@@ -7,6 +7,8 @@ import PrioritySliders from '@/components/PrioritySliders';
 import InteractiveMap from '@/components/InteractiveMap';
 import RecommendationsSidebar from '@/components/RecommendationsSidebar';
 import Footer from '@/components/Footer';
+import LoadingState from '@/components/LoadingState';
+import { AnimationProvider, useAnimationContext } from '@/contexts/AnimationContext';
 import type { DeploymentPlan } from '@/lib/types';
 import type { Location } from '@/utils/boundariesApi';
 import { transformPipelineToDeploymentPlan, isPipelineResponse } from '@/utils/pipelineTransform';
@@ -15,7 +17,7 @@ type CityData = Location;
 
 // Mock recommendations for Madison County
 
-export default function DashboardPage({ params }: { params: { city: string } }) {
+function DashboardContent({ params }: { params: { city: string } }) {
   const [cityData, setCityData] = useState<CityData | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [isRecommendationsOpen, setIsRecommendationsOpen] = useState(false);
@@ -23,10 +25,12 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
   const [isRunningPipeline, setIsRunningPipeline] = useState(false);
   const [tractGeometries, setTractGeometries] = useState<any>(null);
   const [allWifiZones, setAllWifiZones] = useState<Record<string, any[]>>({});
+  const [chatPrompt, setChatPrompt] = useState<string>('');
   const mapRef = useRef<{
     showRecommendations: (plan: DeploymentPlan) => void;
     centerOnSite: (siteIndex: number) => void;
   } | null>(null);
+  const { setInitialLoadComplete } = useAnimationContext();
 
   useEffect(() => {
     // Retrieve city data from localStorage
@@ -35,16 +39,36 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
       const city = JSON.parse(storedCity) as CityData;
       setCityData(city);
 
+      // Mark initial load as complete for animation choreography
+      setTimeout(() => {
+        setInitialLoadComplete(true);
+      }, 300);
+
       // Load mock recommendations for Madison County
       // if (city.slug === 'madison-county-fl') {
       //   setRecommendations(MOCK_MADISON_RECOMMENDATIONS);
       // }
     }
-  }, []);
+  }, [setInitialLoadComplete]);
 
-  const handleRecommendationsReceived = (plan: DeploymentPlan) => {
+  const handleRecommendationsReceived = (
+    plan: DeploymentPlan,
+    tractGeometries?: any,
+    allWifiZones?: any
+  ) => {
     setRecommendations(plan);
     setIsRecommendationsOpen(true); // Auto-open recommendations sidebar
+
+    // Store tract geometries and WiFi zones if provided
+    if (tractGeometries) {
+      console.log('Setting tract geometries from chat:', tractGeometries.features?.length);
+      setTractGeometries(tractGeometries);
+    }
+    if (allWifiZones) {
+      console.log('Setting WiFi zones from chat:', Object.keys(allWifiZones).length);
+      setAllWifiZones(allWifiZones);
+    }
+
     // Notify map component to show recommendations
     if (mapRef.current && mapRef.current.showRecommendations) {
       mapRef.current.showRecommendations(plan);
@@ -52,9 +76,26 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
   };
 
   const handleSiteClick = (siteIndex: number) => {
+    console.log('handleSiteClick called with index:', siteIndex, 'mapRef.current:', mapRef.current);
     // Center map on the clicked site
     if (mapRef.current && mapRef.current.centerOnSite) {
+      console.log('Calling centerOnSite...');
       mapRef.current.centerOnSite(siteIndex);
+    } else {
+      console.warn('mapRef.current or centerOnSite not available');
+    }
+  };
+
+  const handleTractClick = (tractId: string, tractData: any) => {
+    console.log('Tract clicked in dashboard:', tractId, tractData);
+
+    // Generate prompt for the chatbox
+    const prompt = `Summarize Census Tract ${tractId}`;
+    setChatPrompt(prompt);
+
+    // Open chat sidebar if it's closed
+    if (!isChatOpen) {
+      setIsChatOpen(true);
     }
   };
 
@@ -127,11 +168,7 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
   };
 
   if (!cityData) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-foreground">Loading dashboard...</p>
-      </div>
-    );
+    return <LoadingState message="Loading dashboard..." />;
   }
 
   return (
@@ -142,6 +179,7 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
         onClose={() => setIsChatOpen(false)}
         cityName={cityData.name}
         onRecommendationsReceived={handleRecommendationsReceived}
+        suggestedPrompt={chatPrompt}
       />
 
       {/* Recommendations Sidebar (Right) */}
@@ -164,11 +202,7 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
 
       {/* Main Dashboard - shifts when sidebars are open */}
       <div
-        className={`flex-1 transition-all duration-300 pt-[73px] ${
-          isChatOpen ? 'ml-[32rem]' : 'ml-0'
-        } ${
-          isRecommendationsOpen ? 'mr-96' : 'mr-0'
-        }`}
+        className={`flex-1 transition-all duration-300 pt-[73px] ${isChatOpen ? 'ml-[32rem]' : 'ml-0'} ${isRecommendationsOpen ? 'mr-96' : 'mr-0'}`}
       >
         <div className="relative py-5">
           {/* <PrioritySliders /> */}
@@ -180,10 +214,19 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
             mapRefProp={mapRef}
             tractGeometries={tractGeometries}
             allWifiZones={allWifiZones}
+            onTractClick={handleTractClick}
           />
           {/* <Footer /> */}
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage({ params }: { params: { city: string } }) {
+  return (
+    <AnimationProvider>
+      <DashboardContent params={params} />
+    </AnimationProvider>
   );
 }

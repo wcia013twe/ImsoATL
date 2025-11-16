@@ -22,7 +22,7 @@ interface Dot {
 
 export default function AnimatedGlobe() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined);
   const rotationRef = useRef(0);
   const dotsRef = useRef<Dot[]>([]);
   const connectionsRef = useRef<Connection[]>([]);

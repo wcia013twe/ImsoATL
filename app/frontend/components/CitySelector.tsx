@@ -122,7 +122,7 @@ export default function CitySelector() {
 
   return (
     <div className="space-y-4">
-      <Combobox<Location> value={selectedLocation} onChange={handleLocationSelect}>
+      <Combobox<Location> value={selectedLocation ?? undefined} onChange={handleLocationSelect}>
         <div className="relative">
           <label className="block text-sm font-medium text-gray-400 mb-2">
             Search for your city or state
