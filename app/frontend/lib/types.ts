@@ -127,6 +127,8 @@ export interface WebSocketMessage {
   explanation?: string;
   data_synthesis?: string;
   deployment_plan?: DeploymentPlan;
+  tract_geometries?: any;
+  all_wifi_zones?: any;
   summaries?: {
     census: CensusSummary;
     fcc: FCCSummary;

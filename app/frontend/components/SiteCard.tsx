@@ -71,7 +71,7 @@ function getIcon(site: RecommendedSite): string {
     if (firstAsset.type === 'library') return '📚';
     if (firstAsset.type === 'community_center') return '🏛️';
     if (firstAsset.type === 'school') return '🏫';
-    if (firstAsset.type === 'transit') return '🚇';
+    if (firstAsset.type === 'transit_stop') return '🚇';
   }
   return '📍'; // Default location pin
 }

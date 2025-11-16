@@ -20,7 +20,7 @@ export default function RecommendationsSidebar({
   deploymentPlan,
   onSiteClick
 }: RecommendationsSidebarProps) {
-  const shouldReduceMotion = useReducedMotion();
+  const shouldReduceMotion = useReducedMotion() ?? false;
   const { siteRevealKey } = useAnimationContext();
 
   return (
@@ -102,11 +102,11 @@ export default function RecommendationsSidebar({
                     <div className="text-xs text-accent mt-1">Households Connected</div>
                   </div>
                 </div>
-                {deploymentPlan.projected_impact.residents_in_poverty_served && (
+                {deploymentPlan.projected_impact.residents_below_poverty_served && (
                   <div className="mt-3 pt-3 border-t border-border">
                     <div className="text-civic-green">
                       <AnimatedNumber
-                        value={deploymentPlan.projected_impact.residents_in_poverty_served}
+                        value={deploymentPlan.projected_impact.residents_below_poverty_served}
                         format="none"
                         className="text-xl font-bold"
                       />
