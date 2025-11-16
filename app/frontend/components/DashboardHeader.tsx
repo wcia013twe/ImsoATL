@@ -65,8 +65,8 @@ export default function DashboardHeader({
 
         {/* Right: Run Pipeline Button, Sites Button, Export Tools and Dark Mode Toggle */}
         <motion.div variants={fadeInDown} className="flex items-center gap-3">
-          {/* Run Pipeline Button */}
-          {onRunPipeline && location && (
+    
+          {/* {onRunPipeline && location && (
             <motion.button
               onClick={onRunPipeline}
               disabled={isRunningPipeline}
@@ -92,7 +92,7 @@ export default function DashboardHeader({
                 </>
               )}
             </motion.button>
-          )}
+          )} */}
 
           {/* Sites/Recommendations Button */}
           {onToggleRecommendations && (

@@ -1,7 +1,7 @@
 {
   "pages": {},
   "app": {
-    "[project]/app/dashboard/[city]/page": [
+    "[project]/app/frontend/app/dashboard/[city]/page": [
       "static/media/e8f2fbee2754df70-s.p.9b7a96b4.woff2"
     ]
   },

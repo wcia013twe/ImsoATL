@@ -1,19 +1,19 @@
 {
-  "[project]/node_modules/react-globe.gl/dist/react-globe.gl.mjs [app-client] (ecmascript, next/dynamic entry)": {
-    "id": "[project]/node_modules/react-globe.gl/dist/react-globe.gl.mjs [app-client] (ecmascript, next/dynamic entry)",
+  "[project]/app/frontend/node_modules/react-globe.gl/dist/react-globe.gl.mjs [app-client] (ecmascript, next/dynamic entry)": {
+    "id": "[project]/app/frontend/node_modules/react-globe.gl/dist/react-globe.gl.mjs [app-client] (ecmascript, next/dynamic entry)",
     "files": [
-      "static/chunks/node_modules_three_build_three_core_996ef05a.js",
-      "static/chunks/node_modules_three_build_three_module_0c59ee63.js",
-      "static/chunks/node_modules_three_build_three_webgpu_0b895824.js",
-      "static/chunks/node_modules_three_build_three_tsl_92d48f88.js",
-      "static/chunks/node_modules_three_examples_jsm_eab8cf27._.js",
-      "static/chunks/node_modules_9db4801c._.js",
-      "static/chunks/node_modules_92651720._.js",
-      "static/chunks/node_modules_h3-js_dist_browser_h3-js_es_7fb36d90.js",
-      "static/chunks/node_modules_three-globe_dist_three-globe_mjs_ffb492c0._.js",
-      "static/chunks/node_modules_polished_dist_polished_esm_714c8fb0.js",
-      "static/chunks/node_modules_95dd6ccd._.js",
-      "static/chunks/node_modules_react-globe_gl_dist_react-globe_gl_mjs_bcc573ac._.js"
+      "static/chunks/78ca8_three_build_three_core_d6d44164.js",
+      "static/chunks/78ca8_three_build_three_module_46b5d95f.js",
+      "static/chunks/78ca8_three_build_three_webgpu_b4d050c5.js",
+      "static/chunks/78ca8_three_build_three_tsl_556ba6a3.js",
+      "static/chunks/78ca8_three_examples_jsm_d214b988._.js",
+      "static/chunks/78ca8_a906f198._.js",
+      "static/chunks/78ca8_cb9bc175._.js",
+      "static/chunks/78ca8_h3-js_dist_browser_h3-js_es_082d3077.js",
+      "static/chunks/78ca8_three-globe_dist_three-globe_mjs_1b4c5fbf._.js",
+      "static/chunks/78ca8_polished_dist_polished_esm_7915312a.js",
+      "static/chunks/78ca8_4cbade8d._.js",
+      "static/chunks/78ca8_react-globe_gl_dist_react-globe_gl_mjs_9f2971b6._.js"
     ]
   }
 }

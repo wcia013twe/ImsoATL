@@ -914,12 +914,13 @@ export default function InteractiveMap({
 
         // Show popup with tract info
         const props = feature.properties;
+        const locationName = location?.name || 'Unknown Location';
         new mapboxgl.Popup()
           .setLngLat(e.lngLat)
           .setHTML(
             `
             <div style="font-family: system-ui; padding: 8px; min-width: 200px;">
-              <strong style="color: #1f2937; font-size: 14px;">Census Tract ${tractId}</strong>
+              <strong style="color: #1f2937; font-size: 14px;">${locationName}</strong>
               <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
                 <div style="margin: 4px 0;"><strong>Coverage:</strong> ${props?.coverage_percent?.toFixed(1) || 0}%</div>
                 <div style="margin: 4px 0;"><strong>Population:</strong> ${props?.population?.toLocaleString() || 'N/A'}</div>
