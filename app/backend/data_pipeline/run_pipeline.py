@@ -37,7 +37,7 @@ def calculate_wifi_zones_within_tract(
     centroid_lat: float,
     tract_geometry,
     num_zones: int = 3,
-    offset_distance_km: float = 0.5
+    offset_distance_km: float = 1.5
 ) -> List[Dict[str, Any]]:
     """
     Calculate WiFi placement zones within a tract by offsetting from centroid.
@@ -47,7 +47,7 @@ def calculate_wifi_zones_within_tract(
         centroid_lat: Centroid latitude
         tract_geometry: Shapely geometry of the tract polygon
         num_zones: Number of WiFi zones to generate (default 3)
-        offset_distance_km: Distance to offset from centroid in km (default 0.5km)
+        offset_distance_km: Distance to offset from centroid in km (default 1.5km)
 
     Returns:
         List of WiFi zone dictionaries with lng/lat coordinates
@@ -363,7 +363,7 @@ def run_deployment_pipeline_with_location(
                     centroid_lat=centroid.y,
                     tract_geometry=tract_geom,
                     num_zones=3,
-                    offset_distance_km=0.5
+                    offset_distance_km=1.5
                 )
                 site_data['wifi_zones'] = wifi_zones
                 all_wifi_zones[str(geoid)] = wifi_zones
@@ -590,7 +590,7 @@ def run_deployment_pipeline(city_slug: str) -> Dict[str, Any]:
                     centroid_lat=centroid.y,
                     tract_geometry=tract_geom,
                     num_zones=3,
-                    offset_distance_km=0.5
+                    offset_distance_km=1.5
                 )
                 site_data['wifi_zones'] = wifi_zones
                 all_wifi_zones[str(geoid)] = wifi_zones
