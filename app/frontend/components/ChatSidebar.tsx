@@ -40,12 +40,14 @@ export default function ChatSidebar({
   isOpen,
   onClose,
   cityName,
-  onRecommendationsReceived
+  onRecommendationsReceived,
+  suggestedPrompt,
 }: {
   isOpen: boolean;
   onClose: () => void;
   cityName?: string;
   onRecommendationsReceived?: (plan: DeploymentPlan) => void;
+  suggestedPrompt?: string;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(getInitialMessages);
   const [inputValue, setInputValue] = useState('');
@@ -56,6 +58,18 @@ export default function ChatSidebar({
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Update input when suggestedPrompt changes
+  useEffect(() => {
+    if (suggestedPrompt) {
+      setInputValue(suggestedPrompt);
+      setShowSuggestions(false);
+      // Focus input after a short delay to ensure it's rendered
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [suggestedPrompt]);
 
   const suggestions = [
     "Where should we deploy WiFi for underserved students?",
