@@ -1,6 +1,9 @@
 'use client';
 
+import { motion, useReducedMotion } from 'framer-motion';
+import { fadeInUp, getTransition } from '@/utils/motionVariants';
 import SiteCard from './SiteCard';
+import AnimatedNumber from './AnimatedNumber';
 import type { DeploymentPlan } from '@/lib/types';
 
 interface RecommendationsSidebarProps {
@@ -16,6 +19,8 @@ export default function RecommendationsSidebar({
   deploymentPlan,
   onSiteClick
 }: RecommendationsSidebarProps) {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
     <>
       {/* Backdrop (optional, for mobile) */}
@@ -60,33 +65,49 @@ export default function RecommendationsSidebar({
           {deploymentPlan ? (
             <>
               {/* Impact Summary */}
-              <div className="px-6 py-4 border-b border-border bg-surface-hover">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={getTransition(
+                  { duration: 0.4, delay: 0.1 },
+                  shouldReduceMotion
+                )}
+                className="px-6 py-4 border-b border-border bg-surface-hover"
+              >
                 <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
                   Projected Impact
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <div className="text-2xl font-bold text-civic-green">
-                      {deploymentPlan.projected_impact.total_population_served?.toLocaleString() || '0'}
-                    </div>
+                    <AnimatedNumber
+                      value={deploymentPlan.projected_impact.total_population_served || 0}
+                      format="none"
+                      className="text-2xl font-bold text-civic-green"
+                    />
                     <div className="text-xs text-accent mt-1">People Reached</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-civic-blue">
-                      {deploymentPlan.projected_impact.households_without_internet_served?.toLocaleString() || '0'}
-                    </div>
+                    <AnimatedNumber
+                      value={deploymentPlan.projected_impact.households_without_internet_served || 0}
+                      format="none"
+                      className="text-2xl font-bold text-civic-blue"
+                    />
                     <div className="text-xs text-accent mt-1">Households Connected</div>
                   </div>
                 </div>
                 {deploymentPlan.projected_impact.residents_in_poverty_served && (
                   <div className="mt-3 pt-3 border-t border-border">
-                    <div className="text-xl font-bold" style={{ color: 'var(--civic-green)' }}>
-                      {deploymentPlan.projected_impact.residents_in_poverty_served.toLocaleString()}
+                    <div className="text-civic-green">
+                      <AnimatedNumber
+                        value={deploymentPlan.projected_impact.residents_in_poverty_served}
+                        format="none"
+                        className="text-xl font-bold"
+                      />
                     </div>
                     <div className="text-xs text-accent mt-1">Residents in Poverty Served</div>
                   </div>
                 )}
-              </div>
+              </motion.div>
 
               {/* Scrollable Site List */}
               <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
