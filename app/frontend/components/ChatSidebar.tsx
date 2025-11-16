@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
-import { staggerContainer, messageSlide, agentStepReveal, getTransition, TRANSITION } from '@/utils/motionVariants';
+import { staggerContainer, messageSlide, agentStepReveal, sidebarSlide, getTransition, TRANSITION, SPRING } from '@/utils/motionVariants';
 import type { ChatMessage, AgentStep, WebSocketMessage, DeploymentPlan } from '@/lib/types';
 
 const WEBSOCKET_URL = 'ws://localhost:8000/ws/chat';
@@ -289,10 +289,15 @@ export default function ChatSidebar({
   return (
     <>
       {/* Sidebar */}
-      <div
-        className={`fixed top-0 left-0 h-full w-[32rem] bg-surface border-r border-border z-50 transform transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+      <motion.div
+        initial={false}
+        animate={isOpen ? 'visible' : 'hidden'}
+        variants={sidebarSlide('left')}
+        transition={{
+          type: 'spring',
+          ...SPRING.snappy,
+        }}
+        className="fixed top-0 left-0 h-full w-[32rem] bg-surface border-r border-border z-50"
       >
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -524,7 +529,7 @@ export default function ChatSidebar({
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
     </>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, useReducedMotion } from 'framer-motion';
-import { fadeInUp, getTransition, TRANSITION } from '@/utils/motionVariants';
+import { fadeInUp, sidebarSlide, getTransition, TRANSITION, SPRING } from '@/utils/motionVariants';
 import { useAnimationContext } from '@/contexts/AnimationContext';
 import SiteCard from './SiteCard';
 import AnimatedNumber from './AnimatedNumber';
@@ -34,10 +34,15 @@ export default function RecommendationsSidebar({
       )}
 
       {/* Right Sidebar */}
-      <div
-        className={`fixed top-0 right-0 h-full w-96 bg-surface border-l border-border z-40 transform transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+      <motion.div
+        initial={false}
+        animate={isOpen ? 'visible' : 'hidden'}
+        variants={sidebarSlide('right')}
+        transition={{
+          type: 'spring',
+          ...SPRING.snappy,
+        }}
+        className="fixed top-0 right-0 h-full w-96 bg-surface border-l border-border z-40"
       >
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -167,7 +172,7 @@ export default function RecommendationsSidebar({
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     </>
   );
 }
