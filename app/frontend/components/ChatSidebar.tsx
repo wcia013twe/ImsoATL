@@ -49,7 +49,7 @@ export default function ChatSidebar({
   isOpen: boolean;
   onClose: () => void;
   cityName?: string;
-  onRecommendationsReceived?: (plan: DeploymentPlan) => void;
+  onRecommendationsReceived?: (plan: DeploymentPlan, tractGeometries?: any, allWifiZones?: any) => void;
   suggestedPrompt?: string;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(getInitialMessages);
@@ -185,7 +185,11 @@ export default function ChatSidebar({
 
         // Notify parent component of recommendations
         if (data.deployment_plan && onRecommendationsReceived) {
-          onRecommendationsReceived(data.deployment_plan);
+          onRecommendationsReceived(
+            data.deployment_plan,
+            data.tract_geometries,
+            data.all_wifi_zones
+          );
 
           // Trigger coordinated animation cascade: Chat completes → Sites reveal → Map updates
           // Add slight delay to let final message settle

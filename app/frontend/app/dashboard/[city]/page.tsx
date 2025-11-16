@@ -51,9 +51,24 @@ function DashboardContent({ params }: { params: { city: string } }) {
     }
   }, [setInitialLoadComplete]);
 
-  const handleRecommendationsReceived = (plan: DeploymentPlan) => {
+  const handleRecommendationsReceived = (
+    plan: DeploymentPlan,
+    tractGeometries?: any,
+    allWifiZones?: any
+  ) => {
     setRecommendations(plan);
     setIsRecommendationsOpen(true); // Auto-open recommendations sidebar
+
+    // Store tract geometries and WiFi zones if provided
+    if (tractGeometries) {
+      console.log('Setting tract geometries from chat:', tractGeometries.features?.length);
+      setTractGeometries(tractGeometries);
+    }
+    if (allWifiZones) {
+      console.log('Setting WiFi zones from chat:', Object.keys(allWifiZones).length);
+      setAllWifiZones(allWifiZones);
+    }
+
     // Notify map component to show recommendations
     if (mapRef.current && mapRef.current.showRecommendations) {
       mapRef.current.showRecommendations(plan);

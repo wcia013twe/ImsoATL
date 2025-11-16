@@ -251,6 +251,8 @@ OR if location is mentioned:
             "type": "final_response",
             "explanation": explanation,
             "deployment_plan": deployment_plan,
+            "tract_geometries": pipeline_result.get("geometries"),
+            "all_wifi_zones": pipeline_result.get("all_wifi_zones"),
         }
 
     async def _handle_tract_details_query(
@@ -478,6 +480,40 @@ Provide a clear, concise answer (2-4 sentences) addressing their specific questi
         response = await asyncio.to_thread(lambda: self.model.generate_content(prompt))
         return response.text
 
+    def _extract_county_from_geoid(self, geoid: str) -> str:
+        """Extract county name from census tract GEOID."""
+        if not geoid or len(geoid) < 5:
+            return "Unknown County"
+
+        state_fips = geoid[:2]
+        county_fips = geoid[2:5]
+
+        # Florida county FIPS codes
+        florida_counties = {
+            '001': 'Alachua', '003': 'Baker', '005': 'Bay', '007': 'Bradford',
+            '009': 'Brevard', '011': 'Broward', '013': 'Calhoun', '015': 'Charlotte',
+            '017': 'Citrus', '019': 'Clay', '021': 'Collier', '023': 'Columbia',
+            '027': 'DeSoto', '029': 'Dixie', '031': 'Duval', '033': 'Escambia',
+            '035': 'Flagler', '037': 'Franklin', '039': 'Gadsden', '041': 'Gilchrist',
+            '043': 'Glades', '045': 'Gulf', '047': 'Hamilton', '049': 'Hardee',
+            '051': 'Hendry', '053': 'Hernando', '055': 'Highlands', '057': 'Hillsborough',
+            '059': 'Holmes', '061': 'Indian River', '063': 'Jackson', '065': 'Jefferson',
+            '067': 'Lafayette', '069': 'Lake', '071': 'Lee', '073': 'Leon',
+            '075': 'Levy', '077': 'Liberty', '079': 'Madison', '081': 'Manatee',
+            '083': 'Marion', '085': 'Martin', '086': 'Miami-Dade', '087': 'Monroe',
+            '089': 'Nassau', '091': 'Okaloosa', '093': 'Okeechobee', '095': 'Orange',
+            '097': 'Osceola', '099': 'Palm Beach', '101': 'Pasco', '103': 'Pinellas',
+            '105': 'Polk', '107': 'Putnam', '109': 'St. Johns', '111': 'St. Lucie',
+            '113': 'Santa Rosa', '115': 'Sarasota', '117': 'Seminole', '119': 'Sumter',
+            '121': 'Suwannee', '123': 'Taylor', '125': 'Union', '127': 'Volusia',
+            '129': 'Wakulla', '131': 'Walton', '133': 'Washington',
+        }
+
+        if state_fips == '12':  # Florida
+            return florida_counties.get(county_fips, f"County {county_fips}")
+
+        return f"County {county_fips}"
+
     def _format_deployment_plan(
         self, pipeline_result: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -488,10 +524,16 @@ Provide a clear, concise answer (2-4 sentences) addressing their specific questi
         # Calculate tier-based deployment plan
         formatted_sites = []
         for site in sites:
+            geoid = site.get("geoid", "")
+            county_name = self._extract_county_from_geoid(geoid)
+
             formatted_sites.append(
                 {
-                    "tract_id": site.get("geoid"),
-                    "name": f"Tract {site.get('geoid')}",
+                    "tract_id": geoid,
+                    "name": f"{county_name} County",
+                    "state": "Florida",
+                    "county": f"{county_name} County",
+                    "tract": geoid[5:] if len(geoid) > 5 else "",
                     "composite_score": site.get("impact_score", 0),
                     "recommendation_tier": self._map_tier(site.get("deployment_tier")),
                     "poverty_rate": site.get("poverty_rate", 0),
