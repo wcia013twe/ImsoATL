@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import * as turf from "@turf/turf";
-import { MAPBOX_CONFIG, MAP_LAYERS } from "@/lib/mapbox-config";
+import { MAPBOX_CONFIG, MAP_LAYERS } from "../lib/mapbox-config";
 import MapLayerControl from "./MapLayerControl";
 import type { DeploymentPlan } from "@/lib/types";
 import { fetchBoundaryFromAPI, type Location } from "@/utils/boundariesApi";
