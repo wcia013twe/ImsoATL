@@ -34,7 +34,7 @@ class CensusDataClient:
                 state_fips=state_fips,
                 county_fips=Census.ALL,
                 tract=Census.ALL,
-                year=2022
+                year=2020
             )
 
             results = []
@@ -81,7 +81,7 @@ class CensusDataClient:
                 state_fips=state_fips,
                 county_fips=Census.ALL,
                 tract=Census.ALL,
-                year=2022
+                year=2020
             )
 
             results = []
@@ -128,7 +128,7 @@ class CensusDataClient:
                 state_fips=state_fips,
                 county_fips=Census.ALL,
                 tract=Census.ALL,
-                year=2022
+                year=2020
             )
 
             results = []

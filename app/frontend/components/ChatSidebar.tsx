@@ -40,12 +40,14 @@ export default function ChatSidebar({
   isOpen,
   onClose,
   cityName,
-  onRecommendationsReceived
+  onRecommendationsReceived,
+  onTractGeometriesReceived
 }: {
   isOpen: boolean;
   onClose: () => void;
   cityName?: string;
   onRecommendationsReceived?: (plan: DeploymentPlan) => void;
+  onTractGeometriesReceived?: (geojson: any) => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(getInitialMessages);
   const [inputValue, setInputValue] = useState('');
@@ -116,9 +118,11 @@ export default function ChatSidebar({
     };
 
     ws.onmessage = (event) => {
-      const data: WebSocketMessage = JSON.parse(event.data);
+      try {
+        const data: WebSocketMessage = JSON.parse(event.data);
+        console.log('DEBUG: Received websocket message type:', data.type);
 
-      if (data.type === 'agent_step') {
+        if (data.type === 'agent_step') {
         const agentStep: AgentStep = {
           agent: data.agent || '',
           action: data.action || '',
@@ -169,6 +173,20 @@ export default function ChatSidebar({
           onRecommendationsReceived(data.deployment_plan);
         }
 
+        // Notify parent component of tract geometries from map_event
+        if (data.map_event?.payload && onTractGeometriesReceived) {
+          console.log('DEBUG: Received map_event with', data.map_event.payload.features?.length, 'tract features');
+          onTractGeometriesReceived(data.map_event.payload);
+        }
+        // Also check for geojson field directly
+        else if (data.geojson && onTractGeometriesReceived) {
+          console.log('DEBUG: Received geojson with', data.geojson.features?.length, 'tract features');
+          onTractGeometriesReceived(data.geojson);
+        }
+        else {
+          console.log('DEBUG: No map data in response', Object.keys(data));
+        }
+
         ws.close();
       } else if (data.type === 'error') {
         // Clear typing indicator
@@ -187,6 +205,11 @@ export default function ChatSidebar({
 
         setIsProcessing(false);
         ws.close();
+      }
+      } catch (error) {
+        console.error('ERROR: Failed to process websocket message:', error);
+        setTypingStep(null);
+        setIsProcessing(false);
       }
     };
 

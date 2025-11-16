@@ -50,6 +50,11 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
     }
   };
 
+  const handleTractGeometriesReceived = (geojson: any) => {
+    console.log('Received tract geometries:', geojson);
+    setTractGeometries(geojson);
+  };
+
   const handleSiteClick = (siteIndex: number) => {
     // Center map on the clicked site
     if (mapRef.current && mapRef.current.centerOnSite) {
@@ -135,6 +140,7 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
         onClose={() => setIsChatOpen(false)}
         cityName={cityData.name}
         onRecommendationsReceived={handleRecommendationsReceived}
+        onTractGeometriesReceived={handleTractGeometriesReceived}
       />
 
       {/* Recommendations Sidebar (Right) */}

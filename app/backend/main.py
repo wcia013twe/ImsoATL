@@ -58,17 +58,35 @@ async def websocket_chat_endpoint(websocket: WebSocket):
             city = message_data.get("city", "Atlanta")
 
             # Import orchestrator here to avoid circular imports
-            from agents.orchestrator import AgentOrchestrator
+            from agents.orchestrator import OrchestratorAgent
 
             # Create orchestrator instance
-            orchestrator = AgentOrchestrator(
-                gemini_api_key=os.getenv("GEMINI_API_KEY"),
-                census_api_key=os.getenv("CENSUS_API_KEY")
-            )
+            orchestrator = OrchestratorAgent(model="gemini-2.5-flash")
 
-            # Process query and stream responses
-            async for step_data in orchestrator.process_query(user_message, city):
-                await websocket.send_json(step_data)
+            # Process query and get response
+            response = await orchestrator.run(prompt=user_message, city=city)
+
+            # Debug: Log map event data
+            if 'map_event' in response:
+                features_count = len(response['map_event'].get('payload', {}).get('features', []))
+                print(f"DEBUG: Sending map_event with {features_count} tract features")
+
+            # Send the response
+            try:
+                # Test if response can be serialized
+                json_str = json.dumps(response)
+                print(f"DEBUG: Response size: {len(json_str)} bytes")
+                await websocket.send_json(response)
+                print("DEBUG: Response sent successfully")
+            except Exception as e:
+                print(f"ERROR: Failed to send response: {e}")
+                import traceback
+                traceback.print_exc()
+                error_response = {
+                    "type": "error",
+                    "message": f"Failed to serialize response: {str(e)}"
+                }
+                await websocket.send_json(error_response)
 
     except WebSocketDisconnect:
         print("Client disconnected")

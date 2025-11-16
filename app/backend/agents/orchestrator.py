@@ -1,449 +1,629 @@
+"""
+Multi-agent orchestrator that routes user prompts to specialist agents.
 
+The orchestrator follows the pattern described in the ADK documentation:
+1. Receive the user's prompt.
+2. Delegate demographic analysis to a specialized agent.
+3. Retrieve GeoJSON for the selected tracts.
+4. Emit a map overlay event for the frontend.
+5. Summarize the findings back to the user.
 """
-Agent Orchestrator
-Coordinates all specialized agents and streams progress updates
-"""
-from typing import AsyncGenerator, Dict
-import sys
-import os
+
+from __future__ import annotations
+
 import logging
+import re
+from statistics import mean
+from typing import Dict, List, Optional
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+import pandas as pd
+from google.adk.agents import LlmAgent
+from google.adk.runners import InMemoryRunner
+from google.genai import types
+from us import states
+
+from tools.census_data_tool import CensusDataTool
+from tools.map_display_tool import MapDisplayTool
+from tools.scoring_tool import ScoringTool
+from tools.tract_geometry_tool import TractGeometryTool
+
 logger = logging.getLogger(__name__)
 
-# Add parent directory to path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
+# Simple lookup for common deployment cities that do not include their state name.
+CITY_TO_STATE = {
+    "atlanta": states.GA,
+    "miami": states.FL,
+    "orlando": states.FL,
+    "tampa": states.FL,
+    "jacksonville": states.FL,
+}
 
-from data_sources.census_client import CensusDataClient
-from data_sources.fcc_client import FCCBroadbandClient
-from data_sources.civic_assets import CivicAssetsClient
-from agents.census_scorer import CensusScorerAgent
-from agents.fcc_filter import FCCFilterAgent
-from agents.asset_locater import AssetLocatorAgent
-from agents.proximity_ranker import ProximityRankerAgent
-from agents.synthesis_agent import SynthesisAgent
-from agents.explainer import ExplainerAgent
+DEFAULT_STATE = states.GA
 
 
-class AgentOrchestrator:
-    """Orchestrates multi-agent WiFi deployment planning workflow"""
+class DemographicsAgent:
+    """
+    Agent responsible for analyzing census tracts based on user queries.
 
-    def __init__(self, gemini_api_key: str, census_api_key: str):
-        # Initialize data clients
-        self.census_client = CensusDataClient(census_api_key)
-        self.fcc_client = FCCBroadbandClient()
-        self.assets_client = CivicAssetsClient()
+    This class wraps an LlmAgent configuration so the orchestrator can register
+    it as a sub-agent, but uses flexible scoring logic to answer various
+    demographic questions.
+    """
 
-        # Initialize data-fetching agents
-        self.census_agent = CensusScorerAgent(self.census_client)
-        self.fcc_agent = FCCFilterAgent(self.fcc_client)
-        self.asset_agent = AssetLocatorAgent(self.assets_client)
-
-        # Initialize decision-making agents
-        self.synthesis_agent = SynthesisAgent()  # NEW: Dedicated synthesis pipeline
-        self.ranker_agent = ProximityRankerAgent()  # Legacy, keeping for backwards compatibility
-        self.explainer_agent = ExplainerAgent(gemini_api_key)
-
-        # Store intermediate results for dynamic pipeline
-        self.pipeline_data = {}
-
-    async def execute_census_agent(self, state_fips: str):
-        """Execute Census Data Agent"""
-        logger.info("Executing Census Data Agent")
-        yield {
-            "type": "agent_step",
-            "agent": "📊 Census Data Agent",
-            "action": "Fetching poverty, internet access, and student population data for Georgia",
-            "status": "in_progress"
-        }
-
-        scored_tracts = await self.census_agent.score_tracts_by_need(state_fips)
-        census_summary = await self.census_agent.get_summary_statistics(scored_tracts)
-
-        self.pipeline_data['scored_tracts'] = scored_tracts
-        self.pipeline_data['census_summary'] = census_summary
-
-        logger.info(f"Census analysis complete: {len(scored_tracts)} tracts analyzed")
-
-        yield {
-            "type": "agent_step",
-            "agent": "📊 Census Data Agent",
-            "action": f"Analyzed {len(scored_tracts)} census tracts. Found {census_summary.get('critical_need_tracts', 0)} critical need areas.",
-            "status": "completed",
-            "data": {
-                "tracts_analyzed": len(scored_tracts),
-                "critical_need": census_summary.get('critical_need_tracts', 0),
-                "avg_poverty_rate": census_summary.get('avg_poverty_rate', 0)
-            }
-        }
-
-    async def execute_fcc_agent(self, state_fips: str):
-        """Execute FCC Data Agent"""
-        logger.info("Executing FCC Data Agent")
-        yield {
-            "type": "agent_step",
-            "agent": "📡 FCC Data Agent",
-            "action": "Checking broadband coverage gaps (25/3 Mbps threshold)",
-            "status": "in_progress"
-        }
-
-        coverage_gaps = await self.fcc_agent.identify_coverage_gaps(state_fips)
-        scored_tracts = self.pipeline_data.get('scored_tracts', [])
-        merged_coverage = await self.fcc_agent.merge_with_census_data(coverage_gaps, scored_tracts)
-        fcc_prioritized = await self.fcc_agent.prioritize_by_impact(merged_coverage)
-        fcc_summary = await self.fcc_agent.get_coverage_summary(state_fips)
-
-        self.pipeline_data['coverage_gaps'] = coverage_gaps
-        self.pipeline_data['fcc_prioritized'] = fcc_prioritized
-        self.pipeline_data['fcc_summary'] = fcc_summary
-
-        critical_gaps = len([g for g in coverage_gaps if g.get('gap_severity') == 'critical'])
-        logger.info(f"FCC analysis complete: {len(coverage_gaps)} gaps found")
-
-        yield {
-            "type": "agent_step",
-            "agent": "📡 FCC Data Agent",
-            "action": f"Found {len(coverage_gaps)} tracts with coverage gaps. {critical_gaps} critical gaps identified.",
-            "status": "completed",
-            "data": {
-                "total_gaps": len(coverage_gaps),
-                "critical_gaps": critical_gaps
-            }
-        }
-
-    async def execute_assets_agent(self):
-        """Execute Civic Assets Agent"""
-        logger.info("Executing Civic Assets Agent")
-        yield {
-            "type": "agent_step",
-            "agent": "🏛️ Civic Assets Agent",
-            "action": "Locating libraries, community centers, schools, and transit stops",
-            "status": "in_progress"
-        }
-
-        anchor_sites = await self.asset_agent.find_candidate_anchor_sites()
-        scored_tracts = self.pipeline_data.get('scored_tracts', [])
-        high_need_tracts = scored_tracts[:20]  # Top 20 highest need
-        assets_near_need = await self.asset_agent.find_assets_near_high_need_areas(high_need_tracts)
-        asset_summary = await self.asset_agent.get_asset_coverage_summary()
-
-        self.pipeline_data['anchor_sites'] = anchor_sites
-        self.pipeline_data['asset_summary'] = asset_summary
-
-        logger.info(f"Civic assets analysis complete: {len(anchor_sites)} sites found")
-
-        yield {
-            "type": "agent_step",
-            "agent": "🏛️ Civic Assets Agent",
-            "action": f"Identified {len(anchor_sites)} potential anchor sites. {len(assets_near_need)} located near high-need areas.",
-            "status": "completed",
-            "data": {
-                "total_anchors": len(anchor_sites),
-                "near_high_need": len(assets_near_need),
-                "libraries": asset_summary.get('asset_type_breakdown', {}).get('library', 0)
-            }
-        }
-
-    async def execute_synthesis_agent(self, user_priorities: Dict[str, float] = None):
-        """Execute Synthesis/Decision Agent - combines all data sources"""
-        logger.info("Executing Synthesis Agent")
-        yield {
-            "type": "agent_step",
-            "agent": "🧠 Synthesis Agent",
-            "action": "Combining Census, FCC, and Asset data into unified recommendations",
-            "status": "in_progress"
-        }
-
-        # Gather all data from previous agents
-        census_data = self.pipeline_data.get('scored_tracts', [])
-        fcc_data = self.pipeline_data.get('fcc_prioritized', [])
-        asset_data = self.pipeline_data.get('anchor_sites', [])
-
-        logger.info(f"Synthesizing: {len(census_data)} census tracts, {len(fcc_data)} FCC records, {len(asset_data)} assets")
-
-        # Run synthesis pipeline
-        deployment_plan = await self.synthesis_agent.synthesize_recommendations(
-            census_data=census_data,
-            fcc_data=fcc_data,
-            asset_data=asset_data,
-            user_weights=user_priorities,
-            max_sites=15
+    def __init__(self, model: str = "gemini-2.5-flash", max_tracts: int = 12):
+        self.max_tracts = max_tracts
+        self.model = model
+        self.agent = LlmAgent(
+            name="demographics_agent",
+            model=model,
+            instruction=(
+                "Analyze the user's prompt to understand what demographic patterns "
+                "they're asking about. Extract census data and rank tracts according "
+                "to what the user wants to know."
+            ),
+            description="Analyzes census tracts based on user queries.",
         )
+        self.census_tool = CensusDataTool()
 
-        self.pipeline_data['deployment_plan'] = deployment_plan
-        self.pipeline_data['ranked_sites'] = deployment_plan.get('recommended_sites', [])
-
-        logger.info(f"Synthesis complete: {deployment_plan.get('recommended_sites_count', 0)} sites recommended")
-
-        yield {
-            "type": "agent_step",
-            "agent": "🧠 Synthesis Agent",
-            "action": f"Synthesized {deployment_plan.get('recommended_sites_count', 0)} recommendations across {len(deployment_plan.get('phases', []))} deployment phases",
-            "status": "completed",
-            "data": {
-                "sites_recommended": deployment_plan.get('recommended_sites_count', 0),
-                "phases": len(deployment_plan.get('phases', [])),
-                "total_impact": deployment_plan.get('projected_impact', {})
-            }
-        }
-
-    async def execute_ranking_agent(self):
-        """Execute Legacy Ranking Agent (kept for backwards compatibility)"""
-        logger.info("Executing Ranking Agent")
-        yield {
-            "type": "agent_step",
-            "agent": "⚖️ Ranking Agent",
-            "action": "Cross-referencing all datasets and scoring candidate sites",
-            "status": "in_progress"
-        }
-
-        scored_tracts = self.pipeline_data.get('scored_tracts', [])
-        fcc_prioritized = self.pipeline_data.get('fcc_prioritized', [])
-        anchor_sites = self.pipeline_data.get('anchor_sites', [])
-
-        ranked_sites = await self.ranker_agent.rank_deployment_sites(
-            scored_tracts,
-            fcc_prioritized,
-            anchor_sites
-        )
-
-        deployment_plan = await self.ranker_agent.generate_deployment_plan(ranked_sites)
-
-        self.pipeline_data['ranked_sites'] = ranked_sites
-        self.pipeline_data['deployment_plan'] = deployment_plan
-
-        logger.info(f"Ranking complete: {len(ranked_sites)} sites ranked")
-
-        yield {
-            "type": "agent_step",
-            "agent": "⚖️ Ranking Agent",
-            "action": f"Ranked {len(ranked_sites)} sites by composite score. Top {deployment_plan.get('recommended_sites_count', 0)} sites selected.",
-            "status": "completed",
-            "data": {
-                "sites_ranked": len(ranked_sites),
-                "sites_recommended": deployment_plan.get('recommended_sites_count', 0)
-            }
-        }
-
-    async def process_query(
-        self,
-        user_message: str,
-        city: str = "Atlanta"
-    ) -> AsyncGenerator[Dict, None]:
-        """
-        Process user query through multi-agent workflow with streaming updates
-
-        Args:
-            user_message: User's question
-            city: City context (currently only Atlanta supported)
-
-        Yields:
-            Progress updates as dicts with type, agent, message, data
-        """
-        # Map city to state FIPS (currently only Georgia)
-        state_fips = "13"
-
-        logger.info("="*80)
-        logger.info(f"NEW QUERY RECEIVED: '{user_message}'")
-        logger.info(f"City: {city}, State FIPS: {state_fips}")
-        logger.info("="*80)
+    async def identify_underrepresented_tracts(
+        self, prompt: str, state_fips: str
+    ) -> Dict[str, object]:
+        """Runs the census/scoring/geometry workflow for a target state."""
+        logger.info("Demographics agent analyzing prompt='%s'", prompt)
 
         try:
-            # Check if this is a conversational query (greeting, thanks, etc.)
-            logger.info("Checking if query is conversational...")
-            is_conversational = await self.explainer_agent.is_conversational_query(user_message)
+            census_rows = await self.census_tool.run(state_fips=state_fips)
+        except Exception as exc:
+            logger.exception("Failed to pull census data: %s", exc)
+            raise
 
-            if is_conversational:
-                logger.info("Query identified as conversational - generating friendly response")
-                response = await self.explainer_agent.generate_conversational_response(user_message)
-                logger.info(f"Conversational response: {response}")
-                logger.info("="*80)
-                yield {
-                    "type": "final_response",
-                    "explanation": response,
-                    "is_conversational": True
+        if not census_rows:
+            logger.warning("No census rows returned for state %s", state_fips)
+            return {
+                "tracts": [],
+                "geojson": {"type": "FeatureCollection", "features": []},
+                "reasoning": "No census records were returned for the requested area.",
+            }
+
+        census_df = pd.DataFrame(census_rows)
+        # Construct proper 11-digit GEOIDs with zero-padding
+        # Format: SS (state 2 digits) + CCC (county 3 digits) + TTTTTT (tract 6 digits)
+        census_df["GEOID"] = (
+            census_df["state"].astype(str).str.zfill(2)
+            + census_df["county"].astype(str).str.zfill(3)
+            + census_df["tract"].astype(str).str.zfill(6)
+        )
+
+        poverty_rate = self._numeric_series(census_df, "poverty_rate")
+        no_internet_pct = self._numeric_series(census_df, "no_internet_pct")
+        student_pct = self._numeric_series(census_df, "student_pct")
+
+        scoring_df = pd.DataFrame(
+            {
+                "GEOID": census_df["GEOID"],
+                "poverty_rate": poverty_rate / 100.0,
+                "internet_access": 1 - (no_internet_pct / 100.0),
+                "student_rate": student_pct / 100.0,
+            }
+        )
+
+        # Use LLM to determine what the user is asking for
+        query_intent = await self._interpret_query(prompt)
+
+        # Score and rank based on the query intent
+        ranked_geoids = self._rank_tracts(scoring_df, query_intent)
+        top_geoids = ranked_geoids[: self.max_tracts]
+
+        if not top_geoids:
+            return {
+                "tracts": [],
+                "geojson": {"type": "FeatureCollection", "features": []},
+                "reasoning": "Unable to score tracts because the dataset was incomplete.",
+                "query_intent": query_intent,
+            }
+
+        metric_lookup = census_df.set_index("GEOID")
+        scoring_df.set_index("GEOID", inplace=True)
+        scoring_df["score"] = (
+            scoring_df["poverty_rate"] * 0.5
+            + (1 - scoring_df["internet_access"]) * 0.3
+            + scoring_df["student_rate"] * 0.2
+        )
+
+        underrepresented: List[Dict[str, object]] = []
+        for geoid in top_geoids:
+            row = metric_lookup.loc[geoid]
+            score = scoring_df.loc[geoid, "score"]
+            underrepresented.append(
+                {
+                    "geoid": geoid,
+                    "name": row.get("name", "Unknown tract"),
+                    "poverty_rate": float(row.get("poverty_rate", 0)),
+                    "no_internet_pct": float(row.get("no_internet_pct", 0)),
+                    "student_pct": float(row.get("student_pct", 0)),
+                    "priority_score": round(float(score), 4),
                 }
-                return
+            )
 
-            # Step 1: Generate reasoning plan
-            logger.info("STEP 1: Query Parser - Generating reasoning plan")
-            yield {
-                "type": "agent_step",
-                "agent": "🔍 Query Parser",
-                "action": "Analyzing your question and planning approach...",
-                "status": "in_progress"
-            }
+        underrepresented.sort(key=lambda tract: tract["priority_score"], reverse=True)
 
-            reasoning_steps = await self.explainer_agent.generate_reasoning_steps(user_message)
-            logger.info(f"Generated {len(reasoning_steps)} reasoning steps")
-            for i, step in enumerate(reasoning_steps, 1):
-                logger.info(f"  Step {i}: {step.get('agent')} - {step.get('action')}")
+        geometry_tool = TractGeometryTool(geoids=top_geoids)
+        try:
+            geojson = geometry_tool.run()
 
-            # Show the planned steps
-            steps_summary = " → ".join([step.get('agent', 'Agent') for step in reasoning_steps])
-            yield {
-                "type": "agent_step",
-                "agent": "🔍 Query Parser",
-                "action": f"Plan: {steps_summary}",
-                "status": "completed",
-                "data": {"steps": reasoning_steps}
-            }
-            logger.info(f"Query parsing complete. Plan: {steps_summary}")
+            # Enrich GeoJSON features with census data
+            tract_data_by_geoid = {tract["geoid"]: tract for tract in underrepresented}
+            for feature in geojson.get("features", []):
+                geoid = feature.get("properties", {}).get("GEOID")
+                if geoid and geoid in tract_data_by_geoid:
+                    tract_data = tract_data_by_geoid[geoid]
+                    # Merge census data into feature properties
+                    feature["properties"].update({
+                        "poverty_rate": tract_data["poverty_rate"],
+                        "no_internet_pct": tract_data["no_internet_pct"],
+                        "student_pct": tract_data["student_pct"],
+                        "priority_score": tract_data["priority_score"],
+                    })
+        except Exception as exc:
+            logger.exception("Failed to fetch tract geometries: %s", exc)
+            geojson = {"type": "FeatureCollection", "features": []}
 
-            # Show orchestrator planning message
-            yield {
-                "type": "agent_step",
-                "agent": "🤖 Orchestrator",
-                "action": "Executing comprehensive data pipeline: Census → FCC → Assets → Synthesis",
-                "status": "in_progress"
-            }
+        reasoning = await self._build_reasoning(underrepresented, query_intent)
 
-            # Reset pipeline data for this query
-            self.pipeline_data = {}
+        return {
+            "tracts": underrepresented,
+            "geojson": geojson,
+            "reasoning": reasoning,
+            "query_intent": query_intent,
+        }
 
-            # OPTION 1: Always run all 4 agents for consistent, comprehensive analysis
-            # This ensures all data sources are available for any query type
+    async def _interpret_query(self, prompt: str) -> Dict[str, any]:
+        """Use LLM to interpret what the user is asking for."""
+        import json
 
-            # Step 2: Execute Census Data Agent
-            logger.info("STEP 2: Executing Census Data Agent")
-            async for update in self.execute_census_agent(state_fips):
-                yield update
+        interpret_agent = LlmAgent(
+            name="query_interpreter",
+            model=self.model,
+            instruction=f"""Analyze this census data query: "{prompt}"
 
-            yield {
-                "type": "agent_step",
-                "agent": "🤖 Orchestrator",
-                "action": "Census analysis complete. Moving to broadband coverage analysis...",
-                "status": "in_progress"
-            }
+Determine:
+1. What metric are they interested in? (poverty, internet_access, students, wealth, connectivity)
+2. Do they want HIGH or LOW values of that metric?
+3. What's the primary focus?
 
-            # Step 3: Execute FCC Data Agent
-            logger.info("STEP 3: Executing FCC Data Agent")
-            async for update in self.execute_fcc_agent(state_fips):
-                yield update
+Respond with ONLY a JSON object like:
+{{"metric": "poverty_rate", "direction": "high", "focus": "underserved communities"}}
+OR
+{{"metric": "poverty_rate", "direction": "low", "focus": "wealthy communities"}}
+OR
+{{"metric": "internet_access", "direction": "high", "focus": "well-connected areas"}}
 
-            yield {
-                "type": "agent_step",
-                "agent": "🤖 Orchestrator",
-                "action": "Coverage analysis complete. Locating civic anchor sites...",
-                "status": "in_progress"
-            }
+Metric options: poverty_rate, internet_access, student_rate
+Direction options: high, low""",
+        )
 
-            # Step 4: Execute Civic Assets Agent
-            logger.info("STEP 4: Executing Civic Assets Agent")
-            async for update in self.execute_assets_agent():
-                yield update
+        try:
+            runner = InMemoryRunner(agent=interpret_agent, app_name="query_interpret")
 
-            yield {
-                "type": "agent_step",
-                "agent": "🤖 Orchestrator",
-                "action": "Asset mapping complete. Synthesizing recommendations...",
-                "status": "in_progress"
-            }
+            # Create session
+            session = await runner.session_service.create_session(
+                app_name=runner.app_name,
+                user_id="temp_user",
+                session_id="temp_session"
+            )
 
-            # Step 5: Execute Synthesis Agent
-            logger.info("STEP 5: Executing Synthesis Agent")
-            async for update in self.execute_synthesis_agent():
-                yield update
+            message = types.Content(role='user', parts=[types.Part(text="Interpret the query")])
+            response_text = ""
 
-            yield {
-                "type": "agent_step",
-                "agent": "🤖 Orchestrator",
-                "action": "Data synthesis complete. Preparing final explanation...",
-                "status": "completed"
-            }
+            async for event in runner.run_async(user_id="temp_user", session_id="temp_session", new_message=message):
+                if event.is_final_response() and event.content and event.content.parts:
+                    for part in event.content.parts:
+                        if part.text:
+                            response_text += part.text
 
-            # Generate explanation if we have deployment plan
-            deployment_plan = self.pipeline_data.get('deployment_plan')
-            if deployment_plan:
-                logger.info("Generating explanation")
-                yield {
-                    "type": "agent_step",
-                    "agent": "✨ Explainer Agent",
-                    "action": "Generating human-readable explanation",
-                    "status": "in_progress"
-                }
+            # Extract JSON from response
+            json_start = response_text.find('{')
+            json_end = response_text.rfind('}') + 1
+            if json_start >= 0 and json_end > json_start:
+                return json.loads(response_text[json_start:json_end])
+        except Exception as exc:
+            logger.warning("Failed to interpret query, using default: %s", exc)
 
-                explanation = await self.explainer_agent.explain_recommendation(
-                    deployment_plan,
-                    user_message
-                )
+        # Default to underserved communities
+        return {"metric": "poverty_rate", "direction": "high", "focus": "underserved communities"}
 
-                census_summary = self.pipeline_data.get('census_summary', {})
-                fcc_summary = self.pipeline_data.get('fcc_summary', {})
-                asset_summary = self.pipeline_data.get('asset_summary', {})
+    def _rank_tracts(self, scoring_df: pd.DataFrame, query_intent: Dict[str, any]) -> List[str]:
+        """Rank tracts based on the interpreted query intent."""
+        metric = query_intent.get("metric", "poverty_rate")
+        direction = query_intent.get("direction", "high")
 
-                data_synthesis_explanation = await self.explainer_agent.explain_data_synthesis(
-                    census_summary,
-                    fcc_summary,
-                    asset_summary
-                )
-
-                yield {
-                    "type": "agent_step",
-                    "agent": "✨ Explainer Agent",
-                    "action": "Analysis complete",
-                    "status": "completed"
-                }
-
-                logger.info("="*80)
-                logger.info("QUERY PROCESSING COMPLETE")
-                logger.info("="*80)
-
-                # Final response
-                yield {
-                    "type": "final_response",
-                    "explanation": explanation,
-                    "data_synthesis": data_synthesis_explanation,
-                    "deployment_plan": deployment_plan,
-                    "summaries": {
-                        "census": census_summary,
-                        "fcc": fcc_summary,
-                        "assets": asset_summary
-                    }
-                }
+        # Calculate composite score based on the query
+        if "poverty" in metric or "underserved" in query_intent.get("focus", ""):
+            # Traditional underserved scoring
+            scoring_df["score"] = (
+                scoring_df["poverty_rate"] * 0.5
+                + (1 - scoring_df["internet_access"]) * 0.3
+                + scoring_df["student_rate"] * 0.2
+            )
+            ascending = False  # High scores = more underserved
+        elif "wealth" in query_intent.get("focus", "") or "rich" in query_intent.get("focus", ""):
+            # Wealthy areas = low poverty
+            scoring_df["score"] = (
+                (1 - scoring_df["poverty_rate"]) * 0.6
+                + scoring_df["internet_access"] * 0.4
+            )
+            ascending = False  # High scores = wealthier
+        elif "internet" in metric or "connect" in query_intent.get("focus", ""):
+            if direction == "high":
+                # Well-connected areas
+                scoring_df["score"] = scoring_df["internet_access"]
+                ascending = False
             else:
-                # Query didn't need full deployment plan - just provide summary
-                logger.info("Query completed without full deployment plan")
+                # Poorly connected areas
+                scoring_df["score"] = 1 - scoring_df["internet_access"]
+                ascending = False
+        elif "student" in metric:
+            if direction == "high":
+                scoring_df["score"] = scoring_df["student_rate"]
+                ascending = False
+            else:
+                scoring_df["score"] = 1 - scoring_df["student_rate"]
+                ascending = False
+        else:
+            # Default scoring
+            scoring_df["score"] = (
+                scoring_df["poverty_rate"] * 0.5
+                + (1 - scoring_df["internet_access"]) * 0.3
+                + scoring_df["student_rate"] * 0.2
+            )
+            ascending = False
 
-                # Generate simpler explanation based on available data
-                summary_text = "I've analyzed the available data based on your query. "
+        # Sort and return GEOIDs
+        sorted_df = scoring_df.sort_values("score", ascending=ascending)
+        return sorted_df["GEOID"].tolist()
 
-                if 'census_summary' in self.pipeline_data:
-                    census = self.pipeline_data['census_summary']
-                    summary_text += f"Census analysis found {census.get('critical_need_tracts', 0)} critical need areas. "
+    @staticmethod
+    def _numeric_series(
+        df: pd.DataFrame, column: str, default: float = 0.0
+    ) -> pd.Series:
+        if column in df.columns:
+            return pd.to_numeric(df[column], errors="coerce").fillna(default)
+        return pd.Series([default] * len(df), index=df.index)
 
-                if 'fcc_summary' in self.pipeline_data:
-                    fcc = self.pipeline_data['fcc_summary']
-                    summary_text += f"FCC data shows {fcc.get('tracts_with_gaps', 0)} areas with coverage gaps. "
+    async def _build_reasoning(self, tracts: List[Dict[str, object]], query_intent: Dict[str, any]) -> str:
+        """Generate natural, conversational analysis of the tract data."""
+        if not tracts:
+            return "I couldn't find any qualifying tracts that match the criteria."
 
-                if 'asset_summary' in self.pipeline_data:
-                    assets = self.pipeline_data['asset_summary']
-                    summary_text += f"Found {assets.get('total_assets', 0)} civic assets that could serve as anchor points."
+        poverty_avg = mean([t["poverty_rate"] for t in tracts])
+        no_internet_avg = mean([t["no_internet_pct"] for t in tracts])
+        student_avg = mean([t["student_pct"] for t in tracts])
 
-                yield {
-                    "type": "final_response",
-                    "explanation": summary_text,
-                    "summaries": {
-                        "census": self.pipeline_data.get('census_summary', {}),
-                        "fcc": self.pipeline_data.get('fcc_summary', {}),
-                        "assets": self.pipeline_data.get('asset_summary', {})
-                    }
-                }
+        sample_tracts = tracts[:3]
+        tract_examples = "\n".join([
+            f"- {t['name']}: {t['poverty_rate']:.1f}% poverty, "
+            f"{t['no_internet_pct']:.1f}% without internet, "
+            f"{t['student_pct']:.1f}% students"
+            for t in sample_tracts
+        ])
 
-        except Exception as e:
-            logger.error("="*80)
-            logger.error(f"ERROR during query processing: {str(e)}")
-            logger.error("="*80)
-            import traceback
-            logger.error(traceback.format_exc())
-            yield {
-                "type": "error",
-                "message": f"An error occurred during analysis: {str(e)}"
+        # Adapt the context based on what the user asked for
+        focus = query_intent.get("focus", "communities")
+        context_hint = ""
+        if "wealth" in focus or "rich" in focus:
+            context_hint = "These are affluent areas with low poverty rates and good internet access."
+        elif "underserved" in focus or "poverty" in query_intent.get("metric", ""):
+            context_hint = "These are underserved communities facing economic challenges."
+        elif "connect" in focus or "internet" in query_intent.get("metric", ""):
+            context_hint = "These areas were selected based on internet connectivity patterns."
+
+        reasoning_agent = LlmAgent(
+            name="reasoning_generator",
+            model=self.agent.model if isinstance(self.agent.model, str) else "gemini-2.5-flash",
+            instruction=f"""You're analyzing census tract data. Here's what you found:
+
+{len(tracts)} tracts matching the query. Examples:
+
+{tract_examples}
+
+Overall averages across all {len(tracts)} tracts:
+- Poverty rate: {poverty_avg:.1f}%
+- Households without internet: {no_internet_avg:.1f}%
+- Student population: {student_avg:.1f}%
+
+Context: {context_hint}
+
+Explain what you're seeing in this data in a natural, conversational way. Talk about what the numbers
+tell you about these communities, keeping in mind the context above. Be human and thoughtful, not robotic.
+Keep it to 2-3 sentences.""",
+        )
+
+        try:
+            runner = InMemoryRunner(agent=reasoning_agent, app_name="reasoning")
+
+            # Create session first
+            session = await runner.session_service.create_session(
+                app_name=runner.app_name,
+                user_id="temp_user",
+                session_id="temp_session"
+            )
+
+            message = types.Content(role='user', parts=[types.Part(text="Generate the reasoning.")])
+            response_text = ""
+
+            async for event in runner.run_async(user_id="temp_user", session_id="temp_session", new_message=message):
+                if event.is_final_response() and event.content and event.content.parts:
+                    for part in event.content.parts:
+                        if part.text:
+                            response_text += part.text
+
+            return response_text.strip() if response_text else self._fallback_reasoning(len(tracts), poverty_avg, no_internet_avg, query_intent)
+        except Exception as exc:
+            logger.warning("Failed to generate LLM reasoning, using fallback: %s", exc)
+            return self._fallback_reasoning(len(tracts), poverty_avg, no_internet_avg, query_intent)
+
+    @staticmethod
+    def _fallback_reasoning(num_tracts: int, poverty_avg: float, no_internet_avg: float, query_intent: Dict[str, any]) -> str:
+        """Fallback reasoning when LLM generation fails."""
+        focus = query_intent.get("focus", "communities")
+        if "wealth" in focus or "rich" in focus:
+            return (
+                f"Looking at these {num_tracts} affluent neighborhoods, the data shows prosperity. "
+                f"Average poverty rates are just {poverty_avg:.0f}% and only {no_internet_avg:.0f}% of families "
+                f"lack internet access - these are well-connected, economically stable communities."
+            )
+        else:
+            return (
+                f"Looking at these {num_tracts} neighborhoods, I'm seeing some real challenges. "
+                f"About {poverty_avg:.0f}% poverty rates and {no_internet_avg:.0f}% of families "
+                f"without internet access - these are communities that would really benefit from "
+                f"better connectivity."
+            )
+
+
+class OrchestratorAgent:
+    """Front-door agent that interprets the prompt and manages sub-agents."""
+
+    def __init__(self, model: str = "gemini-2.5-flash"):
+        self.model = model
+        self.demographics_agent = DemographicsAgent(model=model)
+        self.agent = LlmAgent(
+            name="orchestrator",
+            model=model,
+            instruction=(
+                "You are Atlas, a civic broadband planning assistant. "
+                "Hold the main conversation, determine which specialist "
+                "agent is needed, delegate work, and then summarize the "
+                "results clearly for the user."
+            ),
+            description="Primary orchestrator for broadband planning prompts.",
+            sub_agents=[self.demographics_agent.agent],
+        )
+
+    async def run(self, prompt: str, city: Optional[str] = None) -> Dict[str, object]:
+        """
+        Entry point used by the FastAPI websocket handler.
+
+        Args:
+            prompt: Raw user prompt.
+            city: Optional city passed from the UI dropdown.
+        """
+        if not prompt:
+            return {
+                "type": "final_response",
+                "agent": self.agent.name,
+                "explanation": "Please provide a question so I can help.",
             }
+
+        # First, determine if the user wants data analysis or just conversation
+        needs_analysis = await self._should_run_analysis(prompt)
+
+        if not needs_analysis:
+            # Just have a conversation
+            return {
+                "type": "final_response",
+                "agent": self.agent.name,
+                "explanation": await self._generate_conversational_response(prompt),
+            }
+
+        # User wants analysis - proceed with demographics workflow
+        target_state = self._resolve_state(prompt, city)
+        logger.info(
+            "Routing prompt='%s' to demographics agent for %s",
+            prompt,
+            target_state.name,
+        )
+
+        analysis = await self.demographics_agent.identify_underrepresented_tracts(
+            prompt=prompt, state_fips=target_state.fips
+        )
+        map_event = MapDisplayTool(analysis["geojson"]).run()
+
+        response = {
+            "type": "final_response",
+            "agent": self.agent.name,
+            "state": {"name": target_state.name, "fips": target_state.fips},
+            "explanation": await self._compose_summary(prompt, target_state.name, analysis, analysis.get("query_intent", {})),
+            "underrepresented_tracts": analysis["tracts"],
+            "map_event": map_event,
+            "reasoning": analysis["reasoning"],
+        }
+
+        return response
+
+    async def _should_run_analysis(self, prompt: str) -> bool:
+        """Determine if the user wants data analysis or just conversation."""
+        intent_agent = LlmAgent(
+            name="intent_classifier",
+            model=self.model,
+            instruction="""You are a classifier. Determine if the user wants data analysis or conversation.
+
+Respond with ONLY one word:
+- "ANALYZE" if they want census data, demographics, underserved areas, or tract analysis
+- "CHAT" if they're greeting you, asking how you are, or just conversing""",
+        )
+
+        try:
+            runner = InMemoryRunner(agent=intent_agent, app_name="intent_check")
+            response_text = await self._run_agent_for_response(runner, prompt)
+            return "ANALYZE" in response_text.upper()
+        except Exception as exc:
+            logger.warning("Failed to determine intent, defaulting to analysis: %s", exc)
+            return True
+
+    async def _run_agent_for_response(self, runner: InMemoryRunner, user_message: str) -> str:
+        """Helper to run an agent and extract the text response."""
+        try:
+            # Create a session first
+            session = await runner.session_service.create_session(
+                app_name=runner.app_name,
+                user_id="temp_user",
+                session_id="temp_session"
+            )
+
+            message = types.Content(role='user', parts=[types.Part(text=user_message)])
+            response_text = ""
+
+            async for event in runner.run_async(user_id="temp_user", session_id="temp_session", new_message=message):
+                if event.is_final_response() and event.content and event.content.parts:
+                    for part in event.content.parts:
+                        if part.text:
+                            response_text += part.text
+
+            return response_text.strip()
+        except Exception as exc:
+            logger.error("Failed to run agent: %s", exc)
+            raise
+
+    async def _generate_conversational_response(self, prompt: str) -> str:
+        """Generate a natural conversational response without running analysis."""
+        conversation_agent = LlmAgent(
+            name="conversational_assistant",
+            model=self.model,
+            instruction="""You are Atlas, a friendly civic broadband planning assistant.
+
+Respond naturally and conversationally, like a helpful colleague would. Be warm, professional,
+and let them know you're here to help analyze census data and find underserved communities when
+they're ready. Keep it brief - 1-2 sentences.""",
+        )
+
+        try:
+            runner = InMemoryRunner(agent=conversation_agent, app_name="conversation")
+            return await self._run_agent_for_response(runner, prompt)
+        except Exception as exc:
+            logger.error("Failed to generate conversational response: %s", exc)
+            return "Hi! I'm here to help you find underserved communities that need better internet access. What would you like to know?"
+
+    def _resolve_state(self, prompt: str, city: Optional[str]) -> states.State:
+        """Pick a state from the prompt text, city, or fall back to the default."""
+        text = f"{prompt} {city or ''}".lower()
+
+        # Direct name match
+        for state_obj in states.STATES:
+            if state_obj.name and state_obj.name.lower() in text:
+                return state_obj
+
+        # Abbreviation match using word boundaries to avoid false positives.
+        tokens = re.findall(r"[A-Za-z]{2,}", text)
+        for token in tokens:
+            state_obj = states.lookup(token.upper())
+            if state_obj is not None:
+                return state_obj
+
+        # City mapping fallback.
+        if city:
+            city_state = CITY_TO_STATE.get(city.strip().lower())
+            if city_state:
+                return city_state
+
+        return DEFAULT_STATE
+
+    async def _compose_summary(
+        self, prompt: str, state_name: str, analysis: Dict[str, object], query_intent: Dict[str, any]
+    ) -> str:
+        """Generate a natural, conversational summary using the LLM."""
+        tracts = analysis.get("tracts", [])
+
+        if not tracts:
+            # Even for empty results, be conversational
+            no_data_agent = LlmAgent(
+                name="no_data_responder",
+                model=self.model,
+                instruction=f"""The user asked: "{prompt}"
+
+You looked at Census data for {state_name}, but didn't find any tracts matching the criteria
+or there was no data available. Respond naturally and conversationally, like you're explaining
+this to a colleague. Suggest what they might want to try instead or ask for clarification.
+Keep it brief and friendly.""",
+            )
+
+            try:
+                runner = InMemoryRunner(agent=no_data_agent, app_name="no_data_response")
+                return await self._run_agent_for_response(runner, "Respond to the user.")
+            except Exception as exc:
+                logger.warning("Failed to generate LLM summary: %s", exc)
+                return f"I couldn't find any data for {state_name}."
+
+        # Prepare top tract highlights
+        top_tracts = tracts[:5]
+        tract_highlights = "\n".join([
+            f"- {t['name']} (GEOID {t['geoid']}): "
+            f"{t['poverty_rate']:.1f}% poverty, {t['no_internet_pct']:.1f}% no internet, "
+            f"priority score {t['priority_score']}"
+            for t in top_tracts
+        ])
+
+        # Adapt the description based on what the user asked for
+        focus = query_intent.get("focus", "communities")
+        tract_description = "census tracts"
+        if "wealth" in focus or "rich" in focus:
+            tract_description = "affluent census tracts with the lowest poverty rates"
+        elif "underserved" in focus or "poverty" in query_intent.get("metric", ""):
+            tract_description = "underserved census tracts facing economic challenges"
+        elif "connect" in focus and query_intent.get("direction") == "high":
+            tract_description = "census tracts with the best internet connectivity"
+        elif "connect" in focus and query_intent.get("direction") == "low":
+            tract_description = "census tracts with the poorest internet connectivity"
+
+        # Let the LLM compose a natural response
+        summary_agent = LlmAgent(
+            name="summary_composer",
+            model=self.model,
+            instruction=f"""You're Atlas, a civic broadband planning assistant having a conversation with someone.
+
+They asked: "{prompt}"
+
+You analyzed Census data for {state_name} and identified {len(tracts)} {tract_description}.
+Here are the top areas:
+
+{tract_highlights}
+
+Key insight: {analysis.get('reasoning', '')}
+
+Respond naturally like you're explaining your findings to a colleague. Talk about what you discovered
+and what you've put on the map for them to review. Frame your response based on what they asked for -
+if they asked about rich areas, talk about wealth and low poverty; if they asked about underserved areas,
+talk about challenges and needs. Be conversational and human - use "I" statements, show genuine interest
+in the data, and help them understand what you found. Don't just list facts. Keep it to 3-4 sentences max.""",
+        )
+
+        try:
+            runner = InMemoryRunner(agent=summary_agent, app_name="summary")
+            return await self._run_agent_for_response(runner, "Compose the summary.")
+        except Exception as exc:
+            logger.warning("Failed to generate LLM summary, using fallback: %s", exc)
+            # Conversational fallback - adapt to query intent
+            if "wealth" in focus or "rich" in focus:
+                return (
+                    f"I analyzed the Census data for {state_name} and identified {len(tracts)} affluent areas. "
+                    f"{tracts[0]['name']} stands out with just {tracts[0]['poverty_rate']:.0f}% poverty rate "
+                    f"and {100 - tracts[0]['no_internet_pct']:.0f}% of households with internet access. "
+                    f"I've highlighted all {len(tracts)} prosperous areas on the map for you."
+                )
+            else:
+                return (
+                    f"So I dug into the Census data for {state_name} and found {len(tracts)} neighborhoods "
+                    f"that really stand out. {tracts[0]['name']} caught my eye with {tracts[0]['poverty_rate']:.0f}% "
+                    f"poverty and {tracts[0]['no_internet_pct']:.0f}% of households without internet. "
+                    f"I've highlighted all {len(tracts)} priority areas on the map for you."
+                )

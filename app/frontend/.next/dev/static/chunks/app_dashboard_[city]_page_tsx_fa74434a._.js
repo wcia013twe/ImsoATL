@@ -3,7 +3,7 @@
     chunks: [
   "static/chunks/_da53f361._.js",
   "static/chunks/node_modules_mapbox-gl_dist_mapbox-gl_b0bb8555.js",
-  "static/chunks/node_modules_0dac4d4e._.js",
+  "static/chunks/node_modules_0a07535a._.js",
   "static/chunks/node_modules_mapbox-gl_dist_mapbox-gl_9438b0bd.css"
 ],
     source: "dynamic"

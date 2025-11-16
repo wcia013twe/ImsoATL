@@ -578,6 +578,9 @@ export default function InteractiveMap({
     });
 
     // Remove existing layers if present
+    if (map.current.getLayer("tract-markers")) {
+      map.current.removeLayer("tract-markers");
+    }
     if (map.current.getLayer("tract-polygons-fill")) {
       map.current.removeLayer("tract-polygons-fill");
     }
@@ -590,6 +593,9 @@ export default function InteractiveMap({
     if (map.current.getLayer("selected-tract-outline")) {
       map.current.removeLayer("selected-tract-outline");
     }
+    if (map.current.getSource("tract-centroids")) {
+      map.current.removeSource("tract-centroids");
+    }
     if (map.current.getSource("tract-polygons")) {
       map.current.removeSource("tract-polygons");
     }
@@ -600,48 +606,75 @@ export default function InteractiveMap({
       data: tractGeometries,
     });
 
-    // Add invisible fill layer for click detection
+    // Create centroids for markers
+    const centroidFeatures = tractGeometries.features.map((feature: any) => {
+      const centroid = turf.centroid(feature);
+      return {
+        type: "Feature",
+        geometry: centroid.geometry,
+        properties: feature.properties,
+      };
+    });
+
+    const centroidGeoJSON = {
+      type: "FeatureCollection",
+      features: centroidFeatures,
+    };
+
+    // Add source for tract centroids (markers)
+    map.current.addSource("tract-centroids", {
+      type: "geojson",
+      data: centroidGeoJSON,
+    });
+
+    // Add circle markers at tract centroids
+    map.current.addLayer({
+      id: "tract-markers",
+      type: "circle",
+      source: "tract-centroids",
+      paint: {
+        "circle-radius": 8,
+        "circle-color": "#DC2626",
+        "circle-stroke-width": 2,
+        "circle-stroke-color": "#FFFFFF",
+        "circle-opacity": 0.9,
+      },
+    });
+
+    // Add visible fill layer for priority tracts
     map.current.addLayer({
       id: "tract-polygons-fill",
       type: "fill",
       source: "tract-polygons",
       paint: {
-        "fill-opacity": 0, // Invisible unless selected
+        "fill-color": "#DC2626", // Red color for high-priority tracts
+        "fill-opacity": 0.35, // Semi-transparent
       },
     });
 
-    // Add subtle outline for all tracts (always visible but subtle)
+    // Add outline for all tracts
     map.current.addLayer({
       id: "tract-polygons-outline",
       type: "line",
       source: "tract-polygons",
       paint: {
-        "line-color": "#94a3b8",
-        "line-width": 1,
-        "line-opacity": 0.3,
+        "line-color": "#DC2626",
+        "line-width": 2,
+        "line-opacity": 0.8,
       },
     });
 
-    // Add fill layer for selected tract
+    // Add fill layer for selected tract (highlighted)
     map.current.addLayer({
       id: "selected-tract-fill",
       type: "fill",
       source: "tract-polygons",
       paint: {
-        "fill-color": [
-          "interpolate",
-          ["linear"],
-          ["get", "coverage_percent"],
-          0, "#DC2626",      // 0% coverage = Red
-          25, "#F59E0B",     // 25% = Orange
-          50, "#FCD34D",     // 50% = Yellow
-          75, "#A3E635",     // 75% = Light green
-          100, "#19B987"     // 100% = Green
-        ],
+        "fill-color": "#2691FF", // Blue highlight for selected tract
         "fill-opacity": [
           "case",
-          ["==", ["get", "geoid"], selectedTractId || ""],
-          0.5,  // Show selected tract
+          ["==", ["get", "GEOID"], selectedTractId || ""],
+          0.6,  // Show selected tract with higher opacity
           0     // Hide others
         ],
       },
@@ -664,12 +697,21 @@ export default function InteractiveMap({
       },
     });
 
-    // Cursor pointer on hover
+    // Cursor pointer on hover for polygons
     map.current.on("mouseenter", "tract-polygons-fill", () => {
       if (map.current) map.current.getCanvas().style.cursor = "pointer";
     });
 
     map.current.on("mouseleave", "tract-polygons-fill", () => {
+      if (map.current) map.current.getCanvas().style.cursor = "";
+    });
+
+    // Cursor pointer on hover for markers
+    map.current.on("mouseenter", "tract-markers", () => {
+      if (map.current) map.current.getCanvas().style.cursor = "pointer";
+    });
+
+    map.current.on("mouseleave", "tract-markers", () => {
       if (map.current) map.current.getCanvas().style.cursor = "";
     });
 
@@ -702,33 +744,64 @@ export default function InteractiveMap({
       } else {
         setSelectedTractId(tractId); // Select new tract
 
+        // Zoom to tract bounds
+        try {
+          const bbox = turf.bbox(feature);
+          const bounds: [[number, number], [number, number]] = [
+            [bbox[0], bbox[1]],
+            [bbox[2], bbox[3]]
+          ];
+
+          map.current!.fitBounds(bounds, {
+            padding: 100,
+            duration: 1000,
+            maxZoom: 13
+          });
+
+          console.log(`Zoomed to tract ${tractId}`);
+        } catch (error) {
+          console.error('Error calculating tract bounds:', error);
+          // Fallback to point zoom
+          map.current!.flyTo({
+            center: e.lngLat,
+            zoom: 13,
+            duration: 1000
+          });
+        }
+
         // Show popup with tract info
         const props = feature.properties;
-        new mapboxgl.Popup()
-          .setLngLat(e.lngLat)
-          .setHTML(
-            `
-            <div style="font-family: system-ui; padding: 8px; min-width: 200px;">
-              <strong style="color: #1f2937; font-size: 14px;">Census Tract ${tractId}</strong>
-              <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
-                <div style="margin: 4px 0;"><strong>Coverage:</strong> ${props?.coverage_percent?.toFixed(1) || 0}%</div>
-                <div style="margin: 4px 0;"><strong>Population:</strong> ${props?.population?.toLocaleString() || 'N/A'}</div>
-                <div style="margin: 4px 0;"><strong>Poverty Rate:</strong> ${props?.poverty_rate?.toFixed(1) || 0}%</div>
-                <div style="margin: 4px 0;"><strong>Impact Score:</strong> ${props?.impact_score?.toFixed(1) || 'N/A'}</div>
-                ${props?.deployment_rank ? `<div style="margin: 4px 0;"><strong>Rank:</strong> #${props.deployment_rank}</div>` : ''}
+        const tractName = props?.NAME || props?.name || `Tract ${tractId}`;
+
+        // Delay popup slightly so it appears after zoom starts
+        setTimeout(() => {
+          new mapboxgl.Popup()
+            .setLngLat(e.lngLat)
+            .setHTML(
+              `
+              <div style="font-family: system-ui; padding: 8px; min-width: 220px;">
+                <strong style="color: #1f2937; font-size: 14px;">${tractName}</strong>
+                <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+                  <div style="margin: 4px 0;"><strong>Poverty Rate:</strong> ${props?.poverty_rate?.toFixed(1) || 'N/A'}%</div>
+                  <div style="margin: 4px 0;"><strong>No Internet:</strong> ${props?.no_internet_pct?.toFixed(1) || 'N/A'}%</div>
+                  <div style="margin: 4px 0;"><strong>Students:</strong> ${props?.student_pct?.toFixed(1) || 'N/A'}%</div>
+                  <div style="margin: 4px 0;"><strong>Priority Score:</strong> ${props?.priority_score?.toFixed(3) || 'N/A'}</div>
+                </div>
               </div>
-            </div>
-          `
-          )
-          .addTo(map.current!);
+            `
+            )
+            .addTo(map.current!);
+        }, 300);
       }
     };
 
     map.current.on("click", "tract-polygons-fill", handleTractClick);
+    map.current.on("click", "tract-markers", handleTractClick);
 
     return () => {
       if (map.current) {
         map.current.off("click", "tract-polygons-fill", handleTractClick);
+        map.current.off("click", "tract-markers", handleTractClick);
       }
     };
   }, [mapLoaded, tractGeometries, selectedTractId]);
