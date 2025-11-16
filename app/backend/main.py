@@ -27,6 +27,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register routers
+from routers.boundaries import router as boundaries_router
+app.include_router(boundaries_router)
+
 @app.get("/")
 async def root():
     return {"message": "CivicConnect WiFi Assistant API", "status": "running"}
