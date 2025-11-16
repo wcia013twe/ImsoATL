@@ -1,4 +1,10 @@
-import type { RecommendedSite } from '@/lib/types';
+'use client';
+
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import type { RecommendedSite, SimulationResponse } from '@/lib/types';
+import PersonaSimulationModal from './PersonaSimulationModal';
+import { simulatePersonas } from '@/utils/api';
 
 type SiteCardProps = {
   rank: number;
@@ -82,6 +88,44 @@ export default function SiteCard({ rank, site, onClick }: SiteCardProps) {
   const icon = getIcon(site);
   const displayName = site.county || site.name || `Site ${rank}`;
 
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [simulationData, setSimulationData] = useState<SimulationResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Handle simulate button click
+  const handleSimulate = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering onClick
+    setIsModalOpen(true);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await simulatePersonas(site);
+      setSimulationData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate personas');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle regenerate
+  const handleRegenerate = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await simulatePersonas(site);
+      setSimulationData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate personas');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div
       className={`civic-card border-l-4 ${onClick ? 'cursor-pointer hover:bg-surface-hover transition-colors' : ''}`}
@@ -144,8 +188,29 @@ export default function SiteCard({ rank, site, onClick }: SiteCardProps) {
               ))}
             </ul>
           </div>
+
+          {/* Simulate Personas Button */}
+          <motion.button
+            onClick={handleSimulate}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="mt-3 w-full px-3 py-2 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-400/30 text-purple-300 font-medium hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/50 transition-all text-sm flex items-center justify-center gap-2"
+          >
+            <span className="text-lg">🎭</span>
+            Simulate Community Impact
+          </motion.button>
         </div>
       </div>
+
+      {/* Persona Simulation Modal */}
+      <PersonaSimulationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        simulationData={simulationData}
+        isLoading={isLoading}
+        error={error}
+        onRegenerate={handleRegenerate}
+      />
     </div>
   );
 }

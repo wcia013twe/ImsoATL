@@ -134,3 +134,40 @@ export interface WebSocketMessage {
   };
   message?: string;
 }
+
+// Persona Simulation Types
+export type PersonaSentiment = 'very_positive' | 'positive' | 'neutral';
+
+export interface PersonaReaction {
+  sentiment: PersonaSentiment;
+  quote: string;
+  reasons: string[];
+}
+
+export interface Persona {
+  id: string;
+  name: string;
+  age: number;
+  occupation: string;
+  living_situation: string;
+  daily_routine: string;
+  internet_needs: string[];
+  reaction: PersonaReaction;
+  life_impact: string;
+}
+
+export interface SimulationSummary {
+  overall_sentiment: string;
+  key_impacts: string[];
+  community_transformation: string;
+}
+
+export interface SimulationResponse {
+  status: string;
+  data: {
+    site_name: string;
+    tract_id: string;
+    personas: Persona[];
+    summary: SimulationSummary;
+  };
+}
