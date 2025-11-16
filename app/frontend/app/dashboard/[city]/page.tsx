@@ -7,7 +7,8 @@ import PrioritySliders from '@/components/PrioritySliders';
 import InteractiveMap from '@/components/InteractiveMap';
 import RecommendationsSidebar from '@/components/RecommendationsSidebar';
 import Footer from '@/components/Footer';
-import { AnimationProvider } from '@/contexts/AnimationContext';
+import LoadingState from '@/components/LoadingState';
+import { AnimationProvider, useAnimationContext } from '@/contexts/AnimationContext';
 import type { DeploymentPlan } from '@/lib/types';
 import type { Location } from '@/utils/boundariesApi';
 import { transformPipelineToDeploymentPlan, isPipelineResponse } from '@/utils/pipelineTransform';
@@ -16,7 +17,7 @@ type CityData = Location;
 
 // Mock recommendations for Madison County
 
-export default function DashboardPage({ params }: { params: { city: string } }) {
+function DashboardContent({ params }: { params: { city: string } }) {
   const [cityData, setCityData] = useState<CityData | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [isRecommendationsOpen, setIsRecommendationsOpen] = useState(false);
@@ -29,6 +30,7 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
     showRecommendations: (plan: DeploymentPlan) => void;
     centerOnSite: (siteIndex: number) => void;
   } | null>(null);
+  const { setInitialLoadComplete } = useAnimationContext();
 
   useEffect(() => {
     // Retrieve city data from localStorage
@@ -37,12 +39,17 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
       const city = JSON.parse(storedCity) as CityData;
       setCityData(city);
 
+      // Mark initial load as complete for animation choreography
+      setTimeout(() => {
+        setInitialLoadComplete(true);
+      }, 300);
+
       // Load mock recommendations for Madison County
       // if (city.slug === 'madison-county-fl') {
       //   setRecommendations(MOCK_MADISON_RECOMMENDATIONS);
       // }
     }
-  }, []);
+  }, [setInitialLoadComplete]);
 
   const handleRecommendationsReceived = (plan: DeploymentPlan) => {
     setRecommendations(plan);
@@ -142,16 +149,11 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
   };
 
   if (!cityData) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-foreground">Loading dashboard...</p>
-      </div>
-    );
+    return <LoadingState message="Loading dashboard..." />;
   }
 
   return (
-    <AnimationProvider>
-      <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background flex">
         {/* Chat Sidebar (Left) */}
         <ChatSidebar
         isOpen={isChatOpen}
@@ -202,7 +204,14 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
           {/* <Footer /> */}
         </div>
       </div>
-      </div>
+    </div>
+  );
+}
+
+export default function DashboardPage({ params }: { params: { city: string } }) {
+  return (
+    <AnimationProvider>
+      <DashboardContent params={params} />
     </AnimationProvider>
   );
 }
