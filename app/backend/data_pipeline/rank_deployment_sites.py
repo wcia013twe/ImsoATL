@@ -258,7 +258,8 @@ class DeploymentSiteRanker:
             'geoid', 'deployment_rank', 'deployment_tier',
             'impact_score', 'population', 'poverty_rate', 'median_income',
             'coverage_percent', 'total_assets',
-            'schools', 'libraries', 'community_centers', 'transit_stops'
+            'schools', 'libraries', 'community_centers', 'transit_stops',
+            'total_households', 'no_internet_households', 'no_internet_pct'
         ]
 
         # Convert to list of dicts

@@ -549,6 +549,8 @@ Provide a clear, concise answer (2-4 sentences) addressing their specific questi
         poverty_served = sum(
             s.get("population", 0) * s.get("poverty_rate", 0) / 100 for s in sites
         )
+        # Use actual household data from census instead of estimate
+        households_without_internet = sum(s.get("no_internet_households", 0) for s in sites)
 
         return {
             "recommended_sites_count": len(formatted_sites),
@@ -556,7 +558,7 @@ Provide a clear, concise answer (2-4 sentences) addressing their specific questi
             "projected_impact": {
                 "total_population_served": int(total_pop),
                 "residents_below_poverty_served": int(poverty_served),
-                "households_without_internet_served": int(total_pop * 0.15),  # Estimate
+                "households_without_internet_served": int(households_without_internet),
             },
         }
 
