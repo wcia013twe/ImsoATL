@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Literal, List, Tuple
 import pandas as pd
 from shapely.geometry import shape, Point
-from fetch_tract_geometry import TractGeometryFetcher
+from .fetch_tract_geometry import TractGeometryFetcher
 import math
 
 logging.basicConfig(level=logging.INFO)
