@@ -194,6 +194,9 @@ class DeploymentSiteRanker:
         merged['population'] = merged['population'].fillna(0)
         merged['poverty_rate'] = merged['poverty_rate'].fillna(0)
         merged['median_income'] = merged['median_income'].fillna(50000)
+        merged['total_households'] = merged['total_households'].fillna(0)
+        merged['no_internet_households'] = merged['no_internet_households'].fillna(0)
+        merged['no_internet_pct'] = merged['no_internet_pct'].fillna(0)
 
         # Normalize scores to 0-100 scale
 

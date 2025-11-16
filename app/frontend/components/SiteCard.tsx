@@ -194,9 +194,8 @@ export default function SiteCard({ rank, site, onClick }: SiteCardProps) {
             onClick={handleSimulate}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="mt-3 w-full px-3 py-2 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-400/30 text-purple-300 font-medium hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/50 transition-all text-sm flex items-center justify-center gap-2"
+            className="mt-3 w-full px-3 py-2 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-400/30 text-purple-300 font-medium hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/50 transition-all text-sm"
           >
-            <span className="text-lg">🎭</span>
             Simulate Community Impact
           </motion.button>
         </div>

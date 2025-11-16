@@ -21,14 +21,25 @@ export default function PersonaCard({ persona, index }: PersonaCardProps) {
     }
   };
 
-  const getSentimentEmoji = () => {
+  const getSentimentLabel = () => {
     switch (persona.reaction.sentiment) {
       case 'very_positive':
-        return '😊';
+        return 'Very Positive';
       case 'positive':
-        return '🙂';
+        return 'Positive';
       default:
-        return '😐';
+        return 'Neutral';
+    }
+  };
+
+  const getSentimentBadgeColor = () => {
+    switch (persona.reaction.sentiment) {
+      case 'very_positive':
+        return 'bg-civic-blue/20 text-civic-blue';
+      case 'positive':
+        return 'bg-civic-green/20 text-civic-green';
+      default:
+        return 'bg-gray-500/20 text-gray-500';
     }
   };
 
@@ -63,8 +74,10 @@ export default function PersonaCard({ persona, index }: PersonaCardProps) {
             {persona.age} years old • {persona.occupation}
           </p>
         </div>
-        <div className="text-2xl flex-shrink-0">
-          {getSentimentEmoji()}
+        <div className="flex-shrink-0">
+          <span className={`text-xs font-semibold px-2 py-1 rounded ${getSentimentBadgeColor()}`}>
+            {getSentimentLabel()}
+          </span>
         </div>
       </div>
 

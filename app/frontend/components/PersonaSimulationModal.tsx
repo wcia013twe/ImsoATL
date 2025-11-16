@@ -59,8 +59,8 @@ export default function PersonaSimulationModal({
                 {/* Header */}
                 <div className="px-6 py-5 border-b border-border flex items-center justify-between sticky top-0 bg-surface z-10 rounded-t-2xl">
                   <div>
-                    <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                      🎭 Community Impact Simulation
+                    <h2 className="text-2xl font-bold text-foreground">
+                      Community Impact Simulation
                     </h2>
                     {simulationData && (
                       <p className="text-sm text-accent mt-1">
@@ -120,8 +120,7 @@ export default function PersonaSimulationModal({
                         animate={{ opacity: 1, y: 0 }}
                         className="mb-8 p-6 bg-surface-hover rounded-xl border border-border"
                       >
-                        <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-                          <span className="text-2xl">💡</span>
+                        <h3 className="text-lg font-semibold text-foreground mb-3">
                           Community Overview
                         </h3>
                         <p className="text-foreground mb-4 leading-relaxed">
