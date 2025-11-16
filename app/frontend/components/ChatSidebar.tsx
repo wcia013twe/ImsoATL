@@ -342,18 +342,16 @@ export default function ChatSidebar({
           </div>
 
           {/* Messages */}
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={staggerContainer(0.08)}
-            className="flex-1 overflow-y-auto px-6 py-4 space-y-4"
-          >
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            <AnimatePresence initial={false}>
             {messages.map((message) => {
               console.log('Rendering message:', message.id, 'Role:', message.role, 'Type:', message.type, 'Content:', message.content.substring(0, 50));
               return (
               <motion.div
                 key={message.id}
-                variants={messageSlide}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
                 transition={getTransition(TRANSITION.subtle, shouldReduceMotion || false)}
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
@@ -464,6 +462,7 @@ export default function ChatSidebar({
               </motion.div>
               );
             })}
+            </AnimatePresence>
 
             {/* Typing Indicator */}
             {isProcessing && typingStep && (
@@ -487,7 +486,7 @@ export default function ChatSidebar({
             )}
 
             <div ref={messagesEndRef} />
-          </motion.div>
+          </div>
 
           {/* Suggestions */}
           {showSuggestions && messages.length === 1 && (
