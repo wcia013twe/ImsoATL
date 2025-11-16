@@ -7,6 +7,7 @@ import * as turf from "@turf/turf";
 import { MAPBOX_CONFIG, MAP_LAYERS } from "@/lib/mapbox-config";
 import MapLayerControl from "./MapLayerControl";
 import type { DeploymentPlan } from "@/lib/types";
+import { fetchBoundaryFromAPI, type Location } from "@/utils/boundariesApi";
 
 // Mock data sources - replace with real data in backend integration
 const MOCK_DATA = {
@@ -89,12 +90,14 @@ export default function InteractiveMap({
   cityCenter,
   cityName,
   citySlug,
+  location,
   recommendations,
   mapRefProp,
 }: {
   cityCenter?: [number, number];
   cityName?: string;
   citySlug?: string;
+  location?: Location;
   recommendations?: DeploymentPlan | null;
   mapRefProp?: React.MutableRefObject<{
     showRecommendations: (plan: DeploymentPlan) => void;
@@ -110,6 +113,7 @@ export default function InteractiveMap({
   ]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [siteCoordinates, setSiteCoordinates] = useState<[number, number][]>([]);
+  const [boundaryData, setBoundaryData] = useState<GeoJSON.Feature | null>(null);
 
   // Use provided city coordinates or default to Atlanta
   const mapCenter = cityCenter || [
@@ -117,7 +121,28 @@ export default function InteractiveMap({
     MAPBOX_CONFIG.atlantaCenter.lat,
   ];
   const mapZoom = cityCenter ? 11.5 : MAPBOX_CONFIG.atlantaCenter.zoom;
-  const boundarySlug = citySlug || "atlanta";
+
+  // Fetch boundary data when location changes
+  useEffect(() => {
+    if (!location) {
+      console.log('No location provided, skipping boundary fetch');
+      return;
+    }
+
+    const loadBoundary = async () => {
+      console.log('Fetching boundary for:', location);
+      const boundary = await fetchBoundaryFromAPI(location);
+
+      if (boundary) {
+        console.log(`Successfully loaded boundary for ${location.name} (${location.type})`);
+        setBoundaryData(boundary);
+      } else {
+        console.error(`Failed to load boundary for ${location.name}`);
+      }
+    };
+
+    loadBoundary();
+  }, [location]);
 
   // Expose methods via ref
   useEffect(() => {
@@ -182,69 +207,6 @@ export default function InteractiveMap({
 
     map.current.on("load", () => {
       if (!map.current) return;
-
-      // Load pre-generated city boundary
-      fetch(`/data/cities/${boundarySlug}.json`)
-        .then((response) => response.json())
-        .then((cityBoundary) => {
-          if (!map.current) return;
-
-          console.log(`Loaded pre-generated ${boundarySlug} boundary`);
-
-          // Add city boundary source with pre-processed boundary
-          map.current.addSource("city-boundary", {
-            type: "geojson",
-            data: {
-              type: "FeatureCollection" as const,
-              features: [cityBoundary],
-            },
-          });
-
-          // Add the clean outer boundary layer
-          map.current.addLayer({
-            id: "city-boundary",
-            type: "line",
-            source: "city-boundary",
-            paint: {
-              "line-color": "#2691FF",
-              "line-width": 3,
-              "line-opacity": 0.8,
-            },
-          });
-
-          // Auto-zoom map to fit city boundary perfectly
-          const bounds = cityBoundary.properties.bounds;
-          if (bounds && bounds.length === 2) {
-            console.log(`Fitting map to ${boundarySlug} bounds:`, bounds);
-            map.current.fitBounds(bounds, {
-              padding: 50,
-              duration: 1000,
-              maxZoom: 11.5,
-            });
-          }
-
-          console.log(`${boundarySlug} boundary displayed successfully`);
-        })
-        .catch((error) => {
-          console.error(`Error loading ${boundarySlug} boundary:`, error);
-          // Fallback to mock data if boundary file fails to load
-          if (map.current) {
-            map.current.addSource("city-boundary", {
-              type: "geojson",
-              data: MOCK_DATA.atlantaBoundary,
-            });
-            map.current.addLayer({
-              id: "city-boundary",
-              type: "line",
-              source: "city-boundary",
-              paint: {
-                "line-color": "#2691FF",
-                "line-width": 3,
-                "line-opacity": 0.8,
-              },
-            });
-          }
-        });
 
       // Add other data sources
       map.current.addSource("libraries", {
@@ -322,6 +284,67 @@ export default function InteractiveMap({
       map.current = null;
     };
   }, [mapCenter, mapZoom]);
+
+  // Add boundary to map when boundaryData is available
+  useEffect(() => {
+    if (!map.current || !mapLoaded || !boundaryData) return;
+
+    console.log('Adding boundary to map:', boundaryData);
+
+    // Remove existing boundary layer and source if present
+    if (map.current.getLayer("city-boundary")) {
+      map.current.removeLayer("city-boundary");
+    }
+    if (map.current.getSource("city-boundary")) {
+      map.current.removeSource("city-boundary");
+    }
+
+    // Add boundary source
+    map.current.addSource("city-boundary", {
+      type: "geojson",
+      data: {
+        type: "FeatureCollection" as const,
+        features: [boundaryData],
+      },
+    });
+
+    // Add boundary layer
+    map.current.addLayer({
+      id: "city-boundary",
+      type: "line",
+      source: "city-boundary",
+      paint: {
+        "line-color": "#2691FF",
+        "line-width": 3,
+        "line-opacity": 0.8,
+      },
+    });
+
+    // Calculate bounds from geometry using turf
+    try {
+      const bbox = turf.bbox(boundaryData);
+      console.log('Calculated bounds from geometry:', bbox);
+
+      // Convert bbox [minLng, minLat, maxLng, maxLat] to Mapbox format [[minLng, minLat], [maxLng, maxLat]]
+      const bounds: [[number, number], [number, number]] = [
+        [bbox[0], bbox[1]],
+        [bbox[2], bbox[3]]
+      ];
+
+      // Determine appropriate zoom based on location type
+      const locationType = location?.type || 'city';
+      const maxZoom = locationType === 'state' ? 8 : 13;
+
+      console.log(`Fitting map to ${locationType} with maxZoom: ${maxZoom}`);
+      map.current.fitBounds(bounds, {
+        padding: 50,
+        duration: 1000,
+        maxZoom: maxZoom,
+      });
+    } catch (error) {
+      console.error('Error calculating bounds:', error);
+    }
+  }, [boundaryData, mapLoaded, location]);
 
   // Display recommendations when received
   useEffect(() => {

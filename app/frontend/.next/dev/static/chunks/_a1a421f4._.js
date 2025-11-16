@@ -1591,7 +1591,7 @@ const LAYER_CONFIG = [
         color: "#6B7280"
     }
 ];
-function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRefProp }) {
+function InteractiveMap({ cityCenter, cityName, citySlug, location, recommendations, mapRefProp }) {
     _s();
     const mapContainer = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
     const map = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
@@ -1602,13 +1602,34 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
     ]);
     const [mapLoaded, setMapLoaded] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [siteCoordinates, setSiteCoordinates] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]);
+    const [boundaryData, setBoundaryData] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     // Use provided city coordinates or default to Atlanta
     const mapCenter = cityCenter || [
         __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$mapbox$2d$config$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MAPBOX_CONFIG"].atlantaCenter.lng,
         __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$mapbox$2d$config$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MAPBOX_CONFIG"].atlantaCenter.lat
     ];
     const mapZoom = cityCenter ? 11.5 : __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$mapbox$2d$config$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MAPBOX_CONFIG"].atlantaCenter.zoom;
-    const boundarySlug = citySlug || "atlanta";
+    // Fetch boundary data when location changes
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "InteractiveMap.useEffect": ()=>{
+            if (!location) return;
+            const loadBoundary = {
+                "InteractiveMap.useEffect.loadBoundary": async ()=>{
+                    console.log('Fetching boundary for:', location);
+                    const boundary = await fetchBoundaryWithFallback(location);
+                    if (boundary) {
+                        console.log(`Successfully loaded boundary for ${location.name} (${location.type})`);
+                        setBoundaryData(boundary);
+                    } else {
+                        console.error(`Failed to load boundary for ${location.name}`);
+                    }
+                }
+            }["InteractiveMap.useEffect.loadBoundary"];
+            loadBoundary();
+        }
+    }["InteractiveMap.useEffect"], [
+        location
+    ]);
     // Expose methods via ref
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "InteractiveMap.useEffect": ()=>{
@@ -1674,68 +1695,6 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
             map.current.on("load", {
                 "InteractiveMap.useEffect": ()=>{
                     if (!map.current) return;
-                    // Load pre-generated city boundary
-                    fetch(`/data/cities/${boundarySlug}.json`).then({
-                        "InteractiveMap.useEffect": (response)=>response.json()
-                    }["InteractiveMap.useEffect"]).then({
-                        "InteractiveMap.useEffect": (cityBoundary)=>{
-                            if (!map.current) return;
-                            console.log(`Loaded pre-generated ${boundarySlug} boundary`);
-                            // Add city boundary source with pre-processed boundary
-                            map.current.addSource("city-boundary", {
-                                type: "geojson",
-                                data: {
-                                    type: "FeatureCollection",
-                                    features: [
-                                        cityBoundary
-                                    ]
-                                }
-                            });
-                            // Add the clean outer boundary layer
-                            map.current.addLayer({
-                                id: "city-boundary",
-                                type: "line",
-                                source: "city-boundary",
-                                paint: {
-                                    "line-color": "#2691FF",
-                                    "line-width": 3,
-                                    "line-opacity": 0.8
-                                }
-                            });
-                            // Auto-zoom map to fit city boundary perfectly
-                            const bounds = cityBoundary.properties.bounds;
-                            if (bounds && bounds.length === 2) {
-                                console.log(`Fitting map to ${boundarySlug} bounds:`, bounds);
-                                map.current.fitBounds(bounds, {
-                                    padding: 50,
-                                    duration: 1000,
-                                    maxZoom: 11.5
-                                });
-                            }
-                            console.log(`${boundarySlug} boundary displayed successfully`);
-                        }
-                    }["InteractiveMap.useEffect"]).catch({
-                        "InteractiveMap.useEffect": (error)=>{
-                            console.error(`Error loading ${boundarySlug} boundary:`, error);
-                            // Fallback to mock data if boundary file fails to load
-                            if (map.current) {
-                                map.current.addSource("city-boundary", {
-                                    type: "geojson",
-                                    data: MOCK_DATA.atlantaBoundary
-                                });
-                                map.current.addLayer({
-                                    id: "city-boundary",
-                                    type: "line",
-                                    source: "city-boundary",
-                                    paint: {
-                                        "line-color": "#2691FF",
-                                        "line-width": 3,
-                                        "line-opacity": 0.8
-                                    }
-                                });
-                            }
-                        }
-                    }["InteractiveMap.useEffect"]);
                     // Add other data sources
                     map.current.addSource("libraries", {
                         type: "geojson",
@@ -1805,6 +1764,54 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
     }["InteractiveMap.useEffect"], [
         mapCenter,
         mapZoom
+    ]);
+    // Add boundary to map when boundaryData is available
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "InteractiveMap.useEffect": ()=>{
+            if (!map.current || !mapLoaded || !boundaryData) return;
+            console.log('Adding boundary to map:', boundaryData);
+            // Remove existing boundary layer and source if present
+            if (map.current.getLayer("city-boundary")) {
+                map.current.removeLayer("city-boundary");
+            }
+            if (map.current.getSource("city-boundary")) {
+                map.current.removeSource("city-boundary");
+            }
+            // Add boundary source
+            map.current.addSource("city-boundary", {
+                type: "geojson",
+                data: {
+                    type: "FeatureCollection",
+                    features: [
+                        boundaryData
+                    ]
+                }
+            });
+            // Add boundary layer
+            map.current.addLayer({
+                id: "city-boundary",
+                type: "line",
+                source: "city-boundary",
+                paint: {
+                    "line-color": "#2691FF",
+                    "line-width": 3,
+                    "line-opacity": 0.8
+                }
+            });
+            // Auto-zoom to fit boundary if bounds are available
+            const bounds = boundaryData.properties?.bounds;
+            if (bounds && bounds.length === 2) {
+                console.log('Fitting map to boundary bounds:', bounds);
+                map.current.fitBounds(bounds, {
+                    padding: 50,
+                    duration: 1000,
+                    maxZoom: 11.5
+                });
+            }
+        }
+    }["InteractiveMap.useEffect"], [
+        boundaryData,
+        mapLoaded
     ]);
     // Display recommendations when received
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
@@ -1956,7 +1963,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                         children: cityName ? `${cityName} WiFi Network Map` : "Interactive Site Map"
                     }, void 0, false, {
                         fileName: "[project]/components/InteractiveMap.tsx",
-                        lineNumber: 478,
+                        lineNumber: 484,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1978,7 +1985,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                 }
                             }, void 0, false, {
                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                lineNumber: 487,
+                                lineNumber: 493,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$MapLayerControl$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -1987,7 +1994,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                 onToggle: toggleLayer
                             }, void 0, false, {
                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                lineNumber: 501,
+                                lineNumber: 507,
                                 columnNumber: 13
                             }, this),
                             !__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$mapbox$2d$config$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MAPBOX_CONFIG"].accessToken && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2000,7 +2007,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                             children: "Mapbox API Key Required"
                                         }, void 0, false, {
                                             fileName: "[project]/components/InteractiveMap.tsx",
-                                            lineNumber: 511,
+                                            lineNumber: 517,
                                             columnNumber: 19
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2008,24 +2015,24 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                             children: "Add NEXT_PUBLIC_MAPBOX_TOKEN to .env.local"
                                         }, void 0, false, {
                                             fileName: "[project]/components/InteractiveMap.tsx",
-                                            lineNumber: 514,
+                                            lineNumber: 520,
                                             columnNumber: 19
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/InteractiveMap.tsx",
-                                    lineNumber: 510,
+                                    lineNumber: 516,
                                     columnNumber: 17
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                lineNumber: 509,
+                                lineNumber: 515,
                                 columnNumber: 15
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/InteractiveMap.tsx",
-                        lineNumber: 483,
+                        lineNumber: 489,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2038,7 +2045,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                         children: "Census Data"
                                     }, void 0, false, {
                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                        lineNumber: 525,
+                                        lineNumber: 531,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2051,7 +2058,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         className: "w-4 h-4 rounded bg-[#19B987]"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 528,
+                                                        lineNumber: 534,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2059,13 +2066,13 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         children: "High Poverty"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 529,
+                                                        lineNumber: 535,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                                lineNumber: 527,
+                                                lineNumber: 533,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2075,7 +2082,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         className: "w-4 h-4 rounded bg-[#2691FF]"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 532,
+                                                        lineNumber: 538,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2083,25 +2090,25 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         children: "Low Internet Access"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 533,
+                                                        lineNumber: 539,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                                lineNumber: 531,
+                                                lineNumber: 537,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                        lineNumber: 526,
+                                        lineNumber: 532,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                lineNumber: 524,
+                                lineNumber: 530,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2111,7 +2118,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                         children: "Local Assets"
                                     }, void 0, false, {
                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                        lineNumber: 538,
+                                        lineNumber: 544,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2124,7 +2131,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         className: "w-4 h-4 rounded-full bg-[#7C3AED]"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 541,
+                                                        lineNumber: 547,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2132,13 +2139,13 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         children: "Libraries"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 542,
+                                                        lineNumber: 548,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                                lineNumber: 540,
+                                                lineNumber: 546,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2148,7 +2155,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         className: "w-4 h-4 rounded-full bg-[#DC2626]"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 545,
+                                                        lineNumber: 551,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2156,13 +2163,13 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         children: "Community Centers"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 546,
+                                                        lineNumber: 552,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                                lineNumber: 544,
+                                                lineNumber: 550,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2172,7 +2179,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         className: "w-4 h-4 rounded-full bg-[#7DBDFF]"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 549,
+                                                        lineNumber: 555,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2180,25 +2187,25 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         children: "Transit Stops"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 550,
+                                                        lineNumber: 556,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                                lineNumber: 548,
+                                                lineNumber: 554,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                        lineNumber: 539,
+                                        lineNumber: 545,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                lineNumber: 537,
+                                lineNumber: 543,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2208,7 +2215,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                         children: "WiFi Sites"
                                     }, void 0, false, {
                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                        lineNumber: 555,
+                                        lineNumber: 561,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2221,7 +2228,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         className: "w-4 h-4 rounded-full bg-[#2691FF]"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 558,
+                                                        lineNumber: 564,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2229,13 +2236,13 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         children: "Candidate Sites"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 559,
+                                                        lineNumber: 565,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                                lineNumber: 557,
+                                                lineNumber: 563,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2245,7 +2252,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         className: "w-4 h-4 rounded-full bg-[#6B7280]"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 562,
+                                                        lineNumber: 568,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2253,51 +2260,51 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         children: "Existing WiFi"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 563,
+                                                        lineNumber: 569,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                                lineNumber: 561,
+                                                lineNumber: 567,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                        lineNumber: 556,
+                                        lineNumber: 562,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                lineNumber: 554,
+                                lineNumber: 560,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/InteractiveMap.tsx",
-                        lineNumber: 523,
+                        lineNumber: 529,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/InteractiveMap.tsx",
-                lineNumber: 477,
+                lineNumber: 483,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/components/InteractiveMap.tsx",
-            lineNumber: 476,
+            lineNumber: 482,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/InteractiveMap.tsx",
-        lineNumber: 475,
+        lineNumber: 481,
         columnNumber: 5
     }, this);
 }
-_s(InteractiveMap, "SWLgc+Q9Va5Qf6Lm/YSnWc3hFfY=");
+_s(InteractiveMap, "4/w2A49G1AiLeaBNYyHaf2RBe+o=");
 _c = InteractiveMap;
 var _c;
 __turbopack_context__.k.register(_c, "InteractiveMap");
@@ -2999,12 +3006,12 @@ function DashboardPage({ params }) {
                 children: "Loading dashboard..."
             }, void 0, false, {
                 fileName: "[project]/app/dashboard/[city]/page.tsx",
-                lineNumber: 118,
+                lineNumber: 113,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/app/dashboard/[city]/page.tsx",
-            lineNumber: 117,
+            lineNumber: 112,
             columnNumber: 7
         }, this);
     }
@@ -3018,7 +3025,7 @@ function DashboardPage({ params }) {
                 onRecommendationsReceived: handleRecommendationsReceived
             }, void 0, false, {
                 fileName: "[project]/app/dashboard/[city]/page.tsx",
-                lineNumber: 126,
+                lineNumber: 121,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$RecommendationsSidebar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -3028,7 +3035,7 @@ function DashboardPage({ params }) {
                 onSiteClick: handleSiteClick
             }, void 0, false, {
                 fileName: "[project]/app/dashboard/[city]/page.tsx",
-                lineNumber: 134,
+                lineNumber: 129,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$DashboardHeader$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -3037,7 +3044,7 @@ function DashboardPage({ params }) {
                 cityName: cityData.name
             }, void 0, false, {
                 fileName: "[project]/app/dashboard/[city]/page.tsx",
-                lineNumber: 142,
+                lineNumber: 137,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3048,27 +3055,28 @@ function DashboardPage({ params }) {
                         cityCenter: cityData.coords,
                         cityName: cityData.name,
                         citySlug: cityData.slug,
+                        location: cityData,
                         recommendations: recommendations,
                         mapRefProp: mapRef
                     }, void 0, false, {
                         fileName: "[project]/app/dashboard/[city]/page.tsx",
-                        lineNumber: 158,
+                        lineNumber: 153,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/app/dashboard/[city]/page.tsx",
-                    lineNumber: 156,
+                    lineNumber: 151,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/dashboard/[city]/page.tsx",
-                lineNumber: 149,
+                lineNumber: 144,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/dashboard/[city]/page.tsx",
-        lineNumber: 124,
+        lineNumber: 119,
         columnNumber: 5
     }, this);
 }

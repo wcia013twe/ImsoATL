@@ -8,14 +8,9 @@ import InteractiveMap from '@/components/InteractiveMap';
 import RecommendationsSidebar from '@/components/RecommendationsSidebar';
 import Footer from '@/components/Footer';
 import type { DeploymentPlan } from '@/lib/types';
+import type { Location } from '@/utils/boundariesApi';
 
-type CityData = {
-  id: number;
-  name: string;
-  state: string;
-  slug: string;
-  coords: [number, number];
-};
+type CityData = Location;
 
 // Mock recommendations for Madison County
 const MOCK_MADISON_RECOMMENDATIONS: DeploymentPlan = {
@@ -159,6 +154,7 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
             cityCenter={cityData.coords}
             cityName={cityData.name}
             citySlug={cityData.slug}
+            location={cityData}
             recommendations={recommendations}
             mapRefProp={mapRef}
           />

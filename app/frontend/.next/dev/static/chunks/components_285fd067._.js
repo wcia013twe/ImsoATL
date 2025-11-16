@@ -366,163 +366,695 @@ var _s = __turbopack_context__.k.signature();
 ;
 ;
 ;
-const cities = [
+// US States data
+const states = [
     {
         id: 1,
-        name: 'Atlanta, GA',
+        name: 'Alabama',
+        slug: 'alabama',
+        coords: [
+            -86.9023,
+            32.3182
+        ],
+        type: 'state'
+    },
+    {
+        id: 2,
+        name: 'Alaska',
+        slug: 'alaska',
+        coords: [
+            -152.4044,
+            61.3707
+        ],
+        type: 'state'
+    },
+    {
+        id: 3,
+        name: 'Arizona',
+        slug: 'arizona',
+        coords: [
+            -111.0937,
+            33.7298
+        ],
+        type: 'state'
+    },
+    {
+        id: 4,
+        name: 'Arkansas',
+        slug: 'arkansas',
+        coords: [
+            -92.3731,
+            34.9697
+        ],
+        type: 'state'
+    },
+    {
+        id: 5,
+        name: 'California',
+        slug: 'california',
+        coords: [
+            -119.4179,
+            36.7783
+        ],
+        type: 'state'
+    },
+    {
+        id: 6,
+        name: 'Colorado',
+        slug: 'colorado',
+        coords: [
+            -105.7821,
+            39.5501
+        ],
+        type: 'state'
+    },
+    {
+        id: 7,
+        name: 'Connecticut',
+        slug: 'connecticut',
+        coords: [
+            -72.7554,
+            41.5978
+        ],
+        type: 'state'
+    },
+    {
+        id: 8,
+        name: 'Delaware',
+        slug: 'delaware',
+        coords: [
+            -75.5071,
+            39.3185
+        ],
+        type: 'state'
+    },
+    {
+        id: 9,
+        name: 'Florida',
+        slug: 'florida',
+        coords: [
+            -81.5158,
+            27.7663
+        ],
+        type: 'state'
+    },
+    {
+        id: 10,
+        name: 'Georgia',
+        slug: 'georgia',
+        coords: [
+            -83.5007,
+            32.9866
+        ],
+        type: 'state'
+    },
+    {
+        id: 11,
+        name: 'Hawaii',
+        slug: 'hawaii',
+        coords: [
+            -157.4983,
+            21.0943
+        ],
+        type: 'state'
+    },
+    {
+        id: 12,
+        name: 'Idaho',
+        slug: 'idaho',
+        coords: [
+            -114.4788,
+            44.2405
+        ],
+        type: 'state'
+    },
+    {
+        id: 13,
+        name: 'Illinois',
+        slug: 'illinois',
+        coords: [
+            -88.9937,
+            40.3495
+        ],
+        type: 'state'
+    },
+    {
+        id: 14,
+        name: 'Indiana',
+        slug: 'indiana',
+        coords: [
+            -86.2816,
+            39.8494
+        ],
+        type: 'state'
+    },
+    {
+        id: 15,
+        name: 'Iowa',
+        slug: 'iowa',
+        coords: [
+            -93.0977,
+            42.0115
+        ],
+        type: 'state'
+    },
+    {
+        id: 16,
+        name: 'Kansas',
+        slug: 'kansas',
+        coords: [
+            -96.7265,
+            38.5266
+        ],
+        type: 'state'
+    },
+    {
+        id: 17,
+        name: 'Kentucky',
+        slug: 'kentucky',
+        coords: [
+            -84.6701,
+            37.6681
+        ],
+        type: 'state'
+    },
+    {
+        id: 18,
+        name: 'Louisiana',
+        slug: 'louisiana',
+        coords: [
+            -91.8749,
+            31.1695
+        ],
+        type: 'state'
+    },
+    {
+        id: 19,
+        name: 'Maine',
+        slug: 'maine',
+        coords: [
+            -69.3819,
+            44.6939
+        ],
+        type: 'state'
+    },
+    {
+        id: 20,
+        name: 'Maryland',
+        slug: 'maryland',
+        coords: [
+            -76.6413,
+            39.0639
+        ],
+        type: 'state'
+    },
+    {
+        id: 21,
+        name: 'Massachusetts',
+        slug: 'massachusetts',
+        coords: [
+            -71.5301,
+            42.2302
+        ],
+        type: 'state'
+    },
+    {
+        id: 22,
+        name: 'Michigan',
+        slug: 'michigan',
+        coords: [
+            -84.5361,
+            43.3266
+        ],
+        type: 'state'
+    },
+    {
+        id: 23,
+        name: 'Minnesota',
+        slug: 'minnesota',
+        coords: [
+            -93.9196,
+            45.6945
+        ],
+        type: 'state'
+    },
+    {
+        id: 24,
+        name: 'Mississippi',
+        slug: 'mississippi',
+        coords: [
+            -89.6787,
+            32.7416
+        ],
+        type: 'state'
+    },
+    {
+        id: 25,
+        name: 'Missouri',
+        slug: 'missouri',
+        coords: [
+            -92.2896,
+            38.4561
+        ],
+        type: 'state'
+    },
+    {
+        id: 26,
+        name: 'Montana',
+        slug: 'montana',
+        coords: [
+            -110.3626,
+            46.9219
+        ],
+        type: 'state'
+    },
+    {
+        id: 27,
+        name: 'Nebraska',
+        slug: 'nebraska',
+        coords: [
+            -99.9018,
+            41.1254
+        ],
+        type: 'state'
+    },
+    {
+        id: 28,
+        name: 'Nevada',
+        slug: 'nevada',
+        coords: [
+            -117.0554,
+            38.3135
+        ],
+        type: 'state'
+    },
+    {
+        id: 29,
+        name: 'New Hampshire',
+        slug: 'new-hampshire',
+        coords: [
+            -71.5639,
+            43.4525
+        ],
+        type: 'state'
+    },
+    {
+        id: 30,
+        name: 'New Jersey',
+        slug: 'new-jersey',
+        coords: [
+            -74.5210,
+            40.2989
+        ],
+        type: 'state'
+    },
+    {
+        id: 31,
+        name: 'New Mexico',
+        slug: 'new-mexico',
+        coords: [
+            -106.2371,
+            34.8405
+        ],
+        type: 'state'
+    },
+    {
+        id: 32,
+        name: 'New York',
+        slug: 'new-york-state',
+        coords: [
+            -74.2179,
+            42.1657
+        ],
+        type: 'state'
+    },
+    {
+        id: 33,
+        name: 'North Carolina',
+        slug: 'north-carolina',
+        coords: [
+            -79.8431,
+            35.6301
+        ],
+        type: 'state'
+    },
+    {
+        id: 34,
+        name: 'North Dakota',
+        slug: 'north-dakota',
+        coords: [
+            -99.7840,
+            47.5289
+        ],
+        type: 'state'
+    },
+    {
+        id: 35,
+        name: 'Ohio',
+        slug: 'ohio',
+        coords: [
+            -82.7755,
+            40.3888
+        ],
+        type: 'state'
+    },
+    {
+        id: 36,
+        name: 'Oklahoma',
+        slug: 'oklahoma',
+        coords: [
+            -96.9289,
+            35.5653
+        ],
+        type: 'state'
+    },
+    {
+        id: 37,
+        name: 'Oregon',
+        slug: 'oregon',
+        coords: [
+            -122.0709,
+            44.5720
+        ],
+        type: 'state'
+    },
+    {
+        id: 38,
+        name: 'Pennsylvania',
+        slug: 'pennsylvania',
+        coords: [
+            -77.1945,
+            40.5908
+        ],
+        type: 'state'
+    },
+    {
+        id: 39,
+        name: 'Rhode Island',
+        slug: 'rhode-island',
+        coords: [
+            -71.5118,
+            41.6809
+        ],
+        type: 'state'
+    },
+    {
+        id: 40,
+        name: 'South Carolina',
+        slug: 'south-carolina',
+        coords: [
+            -80.9066,
+            33.8569
+        ],
+        type: 'state'
+    },
+    {
+        id: 41,
+        name: 'South Dakota',
+        slug: 'south-dakota',
+        coords: [
+            -99.4388,
+            44.2998
+        ],
+        type: 'state'
+    },
+    {
+        id: 42,
+        name: 'Tennessee',
+        slug: 'tennessee',
+        coords: [
+            -86.6923,
+            35.7478
+        ],
+        type: 'state'
+    },
+    {
+        id: 43,
+        name: 'Texas',
+        slug: 'texas',
+        coords: [
+            -97.5631,
+            31.0545
+        ],
+        type: 'state'
+    },
+    {
+        id: 44,
+        name: 'Utah',
+        slug: 'utah',
+        coords: [
+            -111.8910,
+            40.1500
+        ],
+        type: 'state'
+    },
+    {
+        id: 45,
+        name: 'Vermont',
+        slug: 'vermont',
+        coords: [
+            -72.7107,
+            44.0459
+        ],
+        type: 'state'
+    },
+    {
+        id: 46,
+        name: 'Virginia',
+        slug: 'virginia',
+        coords: [
+            -78.1690,
+            37.7693
+        ],
+        type: 'state'
+    },
+    {
+        id: 47,
+        name: 'Washington',
+        slug: 'washington',
+        coords: [
+            -121.4905,
+            47.4009
+        ],
+        type: 'state'
+    },
+    {
+        id: 48,
+        name: 'West Virginia',
+        slug: 'west-virginia',
+        coords: [
+            -80.9545,
+            38.4912
+        ],
+        type: 'state'
+    },
+    {
+        id: 49,
+        name: 'Wisconsin',
+        slug: 'wisconsin',
+        coords: [
+            -89.6165,
+            44.2685
+        ],
+        type: 'state'
+    },
+    {
+        id: 50,
+        name: 'Wyoming',
+        slug: 'wyoming',
+        coords: [
+            -107.3025,
+            42.7559
+        ],
+        type: 'state'
+    }
+];
+// Cities data
+const cities = [
+    {
+        id: 51,
+        name: 'Atlanta',
         state: 'Georgia',
         slug: 'atlanta',
         coords: [
             -84.388,
             33.749
-        ]
+        ],
+        type: 'city'
     },
-    // ...existing cities...
     {
-        id: 2,
-        name: 'Madison County, FL',
+        id: 52,
+        name: 'Madison County',
         state: 'Florida',
         slug: 'madison-county-fl',
         coords: [
             -83.4446,
             30.4694
-        ]
+        ],
+        type: 'city'
     },
     {
-        id: 3,
-        name: 'New York, NY',
+        id: 53,
+        name: 'New York',
         state: 'New York',
         slug: 'new-york',
         coords: [
             -74.006,
             40.7128
-        ]
+        ],
+        type: 'city'
     },
     {
-        id: 4,
-        name: 'Los Angeles, CA',
+        id: 54,
+        name: 'Los Angeles',
         state: 'California',
         slug: 'los-angeles',
         coords: [
             -118.2437,
             34.0522
-        ]
+        ],
+        type: 'city'
     },
     {
-        id: 5,
-        name: 'Chicago, IL',
+        id: 55,
+        name: 'Chicago',
         state: 'Illinois',
         slug: 'chicago',
         coords: [
             -87.6298,
             41.8781
-        ]
+        ],
+        type: 'city'
     },
     {
-        id: 6,
-        name: 'Houston, TX',
+        id: 56,
+        name: 'Houston',
         state: 'Texas',
         slug: 'houston',
         coords: [
             -95.3698,
             29.7604
-        ]
+        ],
+        type: 'city'
     },
     {
-        id: 7,
-        name: 'Phoenix, AZ',
+        id: 57,
+        name: 'Phoenix',
         state: 'Arizona',
         slug: 'phoenix',
         coords: [
             -112.074,
             33.4484
-        ]
+        ],
+        type: 'city'
     },
     {
-        id: 8,
-        name: 'Philadelphia, PA',
+        id: 58,
+        name: 'Philadelphia',
         state: 'Pennsylvania',
         slug: 'philadelphia',
         coords: [
             -75.1652,
             39.9526
-        ]
+        ],
+        type: 'city'
     },
     {
-        id: 9,
-        name: 'San Antonio, TX',
+        id: 59,
+        name: 'San Antonio',
         state: 'Texas',
         slug: 'san-antonio',
         coords: [
             -98.4936,
             29.4241
-        ]
+        ],
+        type: 'city'
     },
     {
-        id: 10,
-        name: 'San Diego, CA',
+        id: 60,
+        name: 'San Diego',
         state: 'California',
         slug: 'san-diego',
         coords: [
             -117.1611,
             32.7157
-        ]
+        ],
+        type: 'city'
     },
     {
-        id: 11,
-        name: 'Dallas, TX',
+        id: 61,
+        name: 'Dallas',
         state: 'Texas',
         slug: 'dallas',
         coords: [
             -96.797,
             32.7767
-        ]
+        ],
+        type: 'city'
     }
 ];
 function CitySelector() {
     _s();
     const router = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRouter"])();
-    const [selectedCity, setSelectedCity] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
+    const [selectedLocation, setSelectedLocation] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     const [query, setQuery] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])('');
-    const filteredCities = query === '' ? cities : cities.filter((city)=>{
-        return city.name.toLowerCase().includes(query.toLowerCase());
+    // Combine states and cities into one searchable list
+    const allLocations = [
+        ...states,
+        ...cities
+    ];
+    const filteredLocations = query === '' ? allLocations : allLocations.filter((location)=>{
+        return location.name.toLowerCase().includes(query.toLowerCase());
     });
-    const handleCitySelect = (city)=>{
-        setSelectedCity(city);
+    const handleLocationSelect = (location)=>{
+        setSelectedLocation(location);
     };
     const handleGoToDashboard = ()=>{
-        if (selectedCity) {
-            // Store city data in localStorage for the dashboard
-            localStorage.setItem('selectedCity', JSON.stringify(selectedCity));
+        if (selectedLocation) {
+            // Store location data in localStorage for the dashboard
+            localStorage.setItem('selectedCity', JSON.stringify(selectedLocation));
             // Navigate to dashboard
-            router.push(`/dashboard/${selectedCity.slug}`);
+            router.push(`/dashboard/${selectedLocation.slug}`);
         }
+    };
+    const getDisplayName = (location)=>{
+        if (!location) return '';
+        if (location.type === 'city') {
+            return `${location.name}, ${location.state}`;
+        }
+        return location.name;
+    };
+    const getSubtext = (location)=>{
+        if (location.type === 'state') {
+            return 'State';
+        }
+        return location.state;
     };
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "space-y-4",
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$headlessui$2f$react$2f$dist$2f$components$2f$combobox$2f$combobox$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Combobox"], {
-                value: selectedCity,
-                onChange: handleCitySelect,
+                value: selectedLocation,
+                onChange: handleLocationSelect,
                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                     className: "relative",
                     children: [
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
                             className: "block text-sm font-medium text-gray-400 mb-2",
-                            children: "Search for your city and enter"
+                            children: "Search for your city or state"
                         }, void 0, false, {
                             fileName: "[project]/components/CitySelector.tsx",
-                            lineNumber: 53,
+                            lineNumber: 127,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$headlessui$2f$react$2f$dist$2f$components$2f$combobox$2f$combobox$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Combobox"].Input, {
                             className: "w-full rounded-xl border-2 border-gray-700 bg-gray-900/80 backdrop-blur-md py-4 pl-6 pr-12 text-lg font-medium text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all",
-                            placeholder: "Type city name...",
-                            displayValue: (city)=>city?.name ?? '',
+                            placeholder: "Type city or state name...",
+                            displayValue: (location)=>getDisplayName(location),
                             onChange: (event)=>setQuery(event.target.value)
                         }, void 0, false, {
                             fileName: "[project]/components/CitySelector.tsx",
-                            lineNumber: 56,
+                            lineNumber: 130,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$headlessui$2f$react$2f$dist$2f$components$2f$combobox$2f$combobox$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Combobox"].Button, {
@@ -539,30 +1071,30 @@ function CitySelector() {
                                     d: "M19 9l-7 7-7-7"
                                 }, void 0, false, {
                                     fileName: "[project]/components/CitySelector.tsx",
-                                    lineNumber: 69,
+                                    lineNumber: 143,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/components/CitySelector.tsx",
-                                lineNumber: 63,
+                                lineNumber: 137,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/components/CitySelector.tsx",
-                            lineNumber: 62,
+                            lineNumber: 136,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$headlessui$2f$react$2f$dist$2f$components$2f$combobox$2f$combobox$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Combobox"].Options, {
                             className: "absolute z-10 mt-2 max-h-60 w-full overflow-auto rounded-xl bg-gray-900 backdrop-blur-md border border-gray-800 py-2 shadow-2xl focus:outline-none",
-                            children: filteredCities.length === 0 && query !== '' ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            children: filteredLocations.length === 0 && query !== '' ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                 className: "relative cursor-default select-none px-6 py-3 text-gray-400",
-                                children: "No cities found."
+                                children: "No locations found."
                             }, void 0, false, {
                                 fileName: "[project]/components/CitySelector.tsx",
-                                lineNumber: 80,
+                                lineNumber: 154,
                                 columnNumber: 15
-                            }, this) : filteredCities.map((city)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$headlessui$2f$react$2f$dist$2f$components$2f$combobox$2f$combobox$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Combobox"].Option, {
-                                    value: city,
+                            }, this) : filteredLocations.map((location)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$headlessui$2f$react$2f$dist$2f$components$2f$combobox$2f$combobox$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Combobox"].Option, {
+                                    value: location,
                                     className: ({ active })=>`relative cursor-pointer select-none py-3 pl-6 pr-4 transition-colors ${active ? 'bg-blue-500/20 text-white' : 'text-gray-300'}`,
                                     children: ({ selected, active })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                             className: "flex items-center justify-between",
@@ -571,24 +1103,24 @@ function CitySelector() {
                                                     children: [
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                             className: `block font-medium ${selected ? 'font-semibold text-white' : ''}`,
-                                                            children: city.name
+                                                            children: location.name
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/CitySelector.tsx",
-                                                            lineNumber: 97,
+                                                            lineNumber: 171,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                             className: `block text-sm ${active ? 'text-blue-300' : 'text-gray-500'}`,
-                                                            children: city.state
+                                                            children: getSubtext(location)
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/CitySelector.tsx",
-                                                            lineNumber: 100,
+                                                            lineNumber: 174,
                                                             columnNumber: 25
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/components/CitySelector.tsx",
-                                                    lineNumber: 96,
+                                                    lineNumber: 170,
                                                     columnNumber: 23
                                                 }, this),
                                                 selected && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
@@ -601,59 +1133,59 @@ function CitySelector() {
                                                         clipRule: "evenodd"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/CitySelector.tsx",
-                                                        lineNumber: 114,
+                                                        lineNumber: 188,
                                                         columnNumber: 27
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/CitySelector.tsx",
-                                                    lineNumber: 109,
+                                                    lineNumber: 183,
                                                     columnNumber: 25
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/components/CitySelector.tsx",
-                                            lineNumber: 95,
+                                            lineNumber: 169,
                                             columnNumber: 21
                                         }, this)
-                                }, city.id, false, {
+                                }, location.id, false, {
                                     fileName: "[project]/components/CitySelector.tsx",
-                                    lineNumber: 85,
+                                    lineNumber: 159,
                                     columnNumber: 17
                                 }, this))
                         }, void 0, false, {
                             fileName: "[project]/components/CitySelector.tsx",
-                            lineNumber: 78,
+                            lineNumber: 152,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/CitySelector.tsx",
-                    lineNumber: 52,
+                    lineNumber: 126,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/CitySelector.tsx",
-                lineNumber: 51,
+                lineNumber: 125,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
                 onClick: handleGoToDashboard,
-                disabled: !selectedCity,
-                className: `w-full py-4 px-6 rounded-xl font-semibold text-lg text-white transition-all duration-300 ${selectedCity ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/30' : 'bg-gray-800 opacity-50 cursor-not-allowed'}`,
-                children: selectedCity ? `Explore ${selectedCity.name} →` : 'Select a city to continue'
+                disabled: !selectedLocation,
+                className: `w-full py-4 px-6 rounded-xl font-semibold text-lg text-white transition-all duration-300 ${selectedLocation ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/30' : 'bg-gray-800 opacity-50 cursor-not-allowed'}`,
+                children: selectedLocation ? `Explore ${selectedLocation.name} →` : 'Select a location to continue'
             }, void 0, false, {
                 fileName: "[project]/components/CitySelector.tsx",
-                lineNumber: 131,
+                lineNumber: 205,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/CitySelector.tsx",
-        lineNumber: 50,
+        lineNumber: 124,
         columnNumber: 5
     }, this);
 }
-_s(CitySelector, "sbjWzX04Cb8GLQAkWSRnzxPn46k=", false, function() {
+_s(CitySelector, "ZVYEEoGutrwxK0ayxatha8LuD34=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRouter"]
     ];
