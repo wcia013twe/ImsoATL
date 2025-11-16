@@ -12,14 +12,15 @@ The CSV has columns:
 """
 
 import logging
+import os
 import time
 from pathlib import Path
+from typing import Dict, List, Optional
 
 import geopandas as gpd
 import pandas as pd
 import requests
 from shapely.geometry import Point
-from typing import Dict, List, Optional
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -53,6 +54,17 @@ ASSET_FILTERS = {
 STATE_FIPS_TO_ABBR = {
     "12": "FL",
     "13": "GA",
+}
+
+CENSUS_API_BASE = "https://api.census.gov/data"
+CENSUS_DEFAULT_DATASET = "acs/acs5"
+CENSUS_DEFAULT_YEAR = 2022
+CENSUS_VARIABLES = {
+    "NAME": "NAME",
+    "population": "B01003_001E",
+    "median_income": "B19013_001E",
+    "poverty_total": "B17001_001E",
+    "poverty_count": "B17001_002E",
 }
 
 
@@ -476,6 +488,83 @@ def add_asset_counts_to_tracts(
     return result
 
 
+def fetch_census_demographics(
+    state_fips: str,
+    year: int = CENSUS_DEFAULT_YEAR,
+    dataset: str = CENSUS_DEFAULT_DATASET,
+    api_key: Optional[str] = None,
+) -> pd.DataFrame:
+    """Fetch demographic indicators for all census tracts in a state."""
+    api_key = api_key or os.getenv("CENSUS_API_KEY")
+    variables = ",".join(CENSUS_VARIABLES.values())
+
+    params = {
+        "get": variables,
+        "for": "tract:*",
+        "in": f"state:{state_fips}",
+    }
+    if api_key:
+        params["key"] = api_key
+
+    url = f"{CENSUS_API_BASE}/{year}/{dataset}"
+    logger.info(
+        f"Fetching Census demographics for state {state_fips} "
+        f"(dataset={dataset}, year={year})"
+    )
+
+    try:
+        response = requests.get(url, params=params, timeout=60)
+        response.raise_for_status()
+        data = response.json()
+    except Exception as exc:
+        logger.error(f"Failed to fetch Census data: {exc}")
+        return pd.DataFrame()
+
+    if len(data) <= 1:
+        logger.warning("Census API returned no rows.")
+        return pd.DataFrame()
+
+    headers = data[0]
+    rows = data[1:]
+    df = pd.DataFrame(rows, columns=headers)
+
+    for col in [
+        CENSUS_VARIABLES["population"],
+        CENSUS_VARIABLES["median_income"],
+        CENSUS_VARIABLES["poverty_total"],
+        CENSUS_VARIABLES["poverty_count"],
+    ]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    df["GEOID"] = df["state"] + df["county"] + df["tract"]
+
+    df = df.rename(
+        columns={
+            CENSUS_VARIABLES["NAME"]: "census_name",
+            CENSUS_VARIABLES["population"]: "population",
+            CENSUS_VARIABLES["median_income"]: "median_income",
+            CENSUS_VARIABLES["poverty_total"]: "poverty_total",
+            CENSUS_VARIABLES["poverty_count"]: "poverty_count",
+        }
+    )
+    df["poverty_rate"] = (
+        df["poverty_count"] / df["poverty_total"] * 100
+    ).fillna(0)
+
+    result = df[
+        [
+            "GEOID",
+            "census_name",
+            "population",
+            "median_income",
+            "poverty_rate",
+        ]
+    ].copy()
+
+    logger.info(f"Fetched Census data for {len(result)} tracts.")
+    return result
+
+
 def main():
     """Main execution"""
     logger.info("=" * 70)
@@ -523,7 +612,22 @@ def main():
             if col not in tracts_with_coverage.columns:
                 tracts_with_coverage[col] = 0
 
-    # Step 6: Save results
+    # Step 6: Fetch and join Census demographics
+    census_df = fetch_census_demographics(state_fips)
+    census_columns = ["census_name", "population", "median_income", "poverty_rate"]
+    if not census_df.empty:
+        tracts_with_coverage = tracts_with_coverage.merge(
+            census_df, on="GEOID", how="left"
+        )
+    else:
+        logger.warning(
+            "Skipping Census demographic merge because no Census data was retrieved."
+        )
+        for col in census_columns:
+            if col not in tracts_with_coverage.columns:
+                tracts_with_coverage[col] = None
+
+    # Step 7: Save results
     state_names = {"13": "georgia", "12": "florida"}
     state_name = state_names.get(state_fips, f"state_{state_fips}")
 
@@ -536,12 +640,26 @@ def main():
 
     # Use 25/3 Mbps as the standard broadband coverage threshold
     coverage_df = tracts_with_coverage[
-        ["GEOID", "coverage_percent_25_3", *asset_columns]
+        ["GEOID", "coverage_percent_25_3", *asset_columns, *census_columns]
     ].copy()
     coverage_df = coverage_df.rename(columns={"coverage_percent_25_3": "coverage"})
 
     coverage_df.to_csv(csv_file, index=False)
     logger.info(f"Saved CSV to: {csv_file}")
+
+    priority_file = Path(f"{state_name}_tract_priority.csv")
+    if "population" in coverage_df.columns:
+        priority_df = coverage_df[
+            (coverage_df["coverage"] < 100) & (coverage_df["population"] >= 500)
+        ].copy()
+        priority_df.to_csv(priority_file, index=False)
+        logger.info(
+            f"Saved filtered priority CSV (coverage<100 & population>=500) to: {priority_file}"
+        )
+    else:
+        logger.warning(
+            "Skipping priority CSV because population column is missing from coverage data."
+        )
 
     # Summary statistics
     logger.info("\n" + "=" * 70)
@@ -558,6 +676,15 @@ def main():
     logger.info(
         f"Max providers in a tract: {tracts_with_coverage['provider_count'].max():.0f}"
     )
+
+    if "population" in tracts_with_coverage.columns:
+        logger.info(
+            f"\nAverage population per tract: {tracts_with_coverage['population'].mean():.0f}"
+        )
+        logger.info(
+            f"Median household income (median of tracts): "
+            f"${tracts_with_coverage['median_income'].median():,.0f}"
+        )
 
     asset_cols = [
         col for col in tracts_with_coverage.columns if col.startswith("asset_count_")

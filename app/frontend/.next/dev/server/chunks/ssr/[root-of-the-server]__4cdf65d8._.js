@@ -281,7 +281,7 @@ const getDefaultMessages = ()=>[
             timestamp: new Date()
         }
     ];
-function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
+function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived, onMapOverlayReceived }) {
     const [messages, setMessages] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(getInitialMessages);
     const [inputValue, setInputValue] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])('');
     const [isProcessing, setIsProcessing] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
@@ -349,6 +349,17 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
         };
         ws.onmessage = (event)=>{
             const data = JSON.parse(event.data);
+            if (data.type === 'map_overlay' && data.geojson) {
+                onMapOverlayReceived?.({
+                    layer_id: data.layer_id,
+                    overlay_id: data.overlay_id,
+                    title: data.title,
+                    description: data.description,
+                    geojson: data.geojson,
+                    metadata: data.metadata
+                });
+                return;
+            }
             if (data.type === 'agent_step') {
                 const agentStep = {
                     agent: data.agent || '',
@@ -495,7 +506,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                         className: "w-2 h-2 rounded-full bg-civic-green animate-pulse"
                                     }, void 0, false, {
                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                        lineNumber: 284,
+                                        lineNumber: 298,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -503,13 +514,13 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                         children: "Multi-Agent AI Assistant"
                                     }, void 0, false, {
                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                        lineNumber: 285,
+                                        lineNumber: 299,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                lineNumber: 283,
+                                lineNumber: 297,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -531,17 +542,17 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                 d: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                                lineNumber: 294,
+                                                lineNumber: 308,
                                                 columnNumber: 19
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/components/ChatSidebar.tsx",
-                                            lineNumber: 293,
+                                            lineNumber: 307,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                        lineNumber: 288,
+                                        lineNumber: 302,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -560,29 +571,29 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                 d: "M6 18L18 6M6 6l12 12"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                                lineNumber: 303,
+                                                lineNumber: 317,
                                                 columnNumber: 19
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/components/ChatSidebar.tsx",
-                                            lineNumber: 302,
+                                            lineNumber: 316,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                        lineNumber: 297,
+                                        lineNumber: 311,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                lineNumber: 287,
+                                lineNumber: 301,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/ChatSidebar.tsx",
-                        lineNumber: 282,
+                        lineNumber: 296,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -601,7 +612,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                         children: "🤔 Analyzing your request..."
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                                        lineNumber: 328,
+                                                        lineNumber: 342,
                                                         columnNumber: 23
                                                     }, this),
                                                     message.agentSteps.map((step, idx)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -612,7 +623,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                                     children: getAgentIcon(step.agent)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/components/ChatSidebar.tsx",
-                                                                    lineNumber: 331,
+                                                                    lineNumber: 345,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -637,7 +648,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                                                             strokeWidth: "4"
                                                                                         }, void 0, false, {
                                                                                             fileName: "[project]/components/ChatSidebar.tsx",
-                                                                                            lineNumber: 337,
+                                                                                            lineNumber: 351,
                                                                                             columnNumber: 35
                                                                                         }, this),
                                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
@@ -646,13 +657,13 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                                                             d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                                                                                         }, void 0, false, {
                                                                                             fileName: "[project]/components/ChatSidebar.tsx",
-                                                                                            lineNumber: 338,
+                                                                                            lineNumber: 352,
                                                                                             columnNumber: 35
                                                                                         }, this)
                                                                                     ]
                                                                                 }, void 0, true, {
                                                                                     fileName: "[project]/components/ChatSidebar.tsx",
-                                                                                    lineNumber: 336,
+                                                                                    lineNumber: 350,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 step.status === 'completed' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -660,13 +671,13 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                                                     children: "✓"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/components/ChatSidebar.tsx",
-                                                                                    lineNumber: 342,
+                                                                                    lineNumber: 356,
                                                                                     columnNumber: 33
                                                                                 }, this)
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/components/ChatSidebar.tsx",
-                                                                            lineNumber: 333,
+                                                                            lineNumber: 347,
                                                                             columnNumber: 29
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -674,25 +685,25 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                                             children: step.action
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/components/ChatSidebar.tsx",
-                                                                            lineNumber: 345,
+                                                                            lineNumber: 359,
                                                                             columnNumber: 29
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/components/ChatSidebar.tsx",
-                                                                    lineNumber: 332,
+                                                                    lineNumber: 346,
                                                                     columnNumber: 27
                                                                 }, this)
                                                             ]
                                                         }, idx, true, {
                                                             fileName: "[project]/components/ChatSidebar.tsx",
-                                                            lineNumber: 330,
+                                                            lineNumber: 344,
                                                             columnNumber: 25
                                                         }, this))
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                                lineNumber: 327,
+                                                lineNumber: 341,
                                                 columnNumber: 21
                                             }, this),
                                             message.type === 'agent_step' && message.agentSteps?.[0] && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -703,7 +714,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                         children: getAgentIcon(message.agentSteps[0].agent)
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                                        lineNumber: 355,
+                                                        lineNumber: 369,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -728,7 +739,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                                                 strokeWidth: "4"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                                                                lineNumber: 361,
+                                                                                lineNumber: 375,
                                                                                 columnNumber: 31
                                                                             }, this),
                                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
@@ -737,13 +748,13 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                                                 d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                                                                lineNumber: 362,
+                                                                                lineNumber: 376,
                                                                                 columnNumber: 31
                                                                             }, this)
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                                                        lineNumber: 360,
+                                                                        lineNumber: 374,
                                                                         columnNumber: 29
                                                                     }, this),
                                                                     message.agentSteps[0].status === 'completed' && !isOrchestratorThinking(message.agentSteps[0]) && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -751,13 +762,13 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                                         children: "✓"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                                                        lineNumber: 366,
+                                                                        lineNumber: 380,
                                                                         columnNumber: 29
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                                                lineNumber: 357,
+                                                                lineNumber: 371,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -772,7 +783,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                                                 children: "."
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                                                                lineNumber: 373,
+                                                                                lineNumber: 387,
                                                                                 columnNumber: 31
                                                                             }, this),
                                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -780,7 +791,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                                                 children: "."
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                                                                lineNumber: 374,
+                                                                                lineNumber: 388,
                                                                                 columnNumber: 31
                                                                             }, this),
                                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -788,31 +799,31 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                                                 children: "."
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                                                                lineNumber: 375,
+                                                                                lineNumber: 389,
                                                                                 columnNumber: 31
                                                                             }, this)
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                                                        lineNumber: 372,
+                                                                        lineNumber: 386,
                                                                         columnNumber: 29
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                                                lineNumber: 369,
+                                                                lineNumber: 383,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                                        lineNumber: 356,
+                                                        lineNumber: 370,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                                lineNumber: 354,
+                                                lineNumber: 368,
                                                 columnNumber: 21
                                             }, this),
                                             message.type !== "agent_step" && message.type !== "processing" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -822,7 +833,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                         children: message.content
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                                        lineNumber: 386,
+                                                        lineNumber: 400,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -833,7 +844,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                         })
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                                        lineNumber: 388,
+                                                        lineNumber: 402,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
@@ -841,12 +852,12 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                        lineNumber: 316,
+                                        lineNumber: 330,
                                         columnNumber: 17
                                     }, this)
                                 }, message.id, false, {
                                     fileName: "[project]/components/ChatSidebar.tsx",
-                                    lineNumber: 312,
+                                    lineNumber: 326,
                                     columnNumber: 15
                                 }, this)),
                             isProcessing && typingStep && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -861,7 +872,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                 children: getAgentIcon(typingStep.agent)
                                             }, void 0, false, {
                                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                                lineNumber: 404,
+                                                lineNumber: 418,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -872,7 +883,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                         children: typingStep.agent
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                                        lineNumber: 406,
+                                                        lineNumber: 420,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -885,7 +896,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                                     children: "."
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/components/ChatSidebar.tsx",
-                                                                    lineNumber: 409,
+                                                                    lineNumber: 423,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -893,7 +904,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                                     children: "."
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/components/ChatSidebar.tsx",
-                                                                    lineNumber: 410,
+                                                                    lineNumber: 424,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -901,53 +912,53 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                                                     children: "."
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/components/ChatSidebar.tsx",
-                                                                    lineNumber: 411,
+                                                                    lineNumber: 425,
                                                                     columnNumber: 27
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/components/ChatSidebar.tsx",
-                                                            lineNumber: 408,
+                                                            lineNumber: 422,
                                                             columnNumber: 25
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                                        lineNumber: 407,
+                                                        lineNumber: 421,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                                lineNumber: 405,
+                                                lineNumber: 419,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                        lineNumber: 403,
+                                        lineNumber: 417,
                                         columnNumber: 19
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/components/ChatSidebar.tsx",
-                                    lineNumber: 402,
+                                    lineNumber: 416,
                                     columnNumber: 17
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                lineNumber: 401,
+                                lineNumber: 415,
                                 columnNumber: 15
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                 ref: messagesEndRef
                             }, void 0, false, {
                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                lineNumber: 420,
+                                lineNumber: 434,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/ChatSidebar.tsx",
-                        lineNumber: 310,
+                        lineNumber: 324,
                         columnNumber: 11
                     }, this),
                     showSuggestions && messages.length === 1 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -958,7 +969,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                 children: "Suggested Questions"
                             }, void 0, false, {
                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                lineNumber: 426,
+                                lineNumber: 440,
                                 columnNumber: 15
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -969,18 +980,18 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                         children: suggestion
                                     }, index, false, {
                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                        lineNumber: 431,
+                                        lineNumber: 445,
                                         columnNumber: 19
                                     }, this))
                             }, void 0, false, {
                                 fileName: "[project]/components/ChatSidebar.tsx",
-                                lineNumber: 429,
+                                lineNumber: 443,
                                 columnNumber: 15
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/ChatSidebar.tsx",
-                        lineNumber: 425,
+                        lineNumber: 439,
                         columnNumber: 13
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -999,7 +1010,7 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                     className: "flex-1 px-4 py-3 rounded-xl bg-background border border-border text-foreground placeholder-muted focus:outline-none focus:ring-2 focus:ring-civic-blue focus:border-transparent disabled:opacity-50"
                                 }, void 0, false, {
                                     fileName: "[project]/components/ChatSidebar.tsx",
-                                    lineNumber: 446,
+                                    lineNumber: 460,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1018,39 +1029,39 @@ function ChatSidebar({ isOpen, onClose, cityName, onRecommendationsReceived }) {
                                             d: "M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
                                         }, void 0, false, {
                                             fileName: "[project]/components/ChatSidebar.tsx",
-                                            lineNumber: 462,
+                                            lineNumber: 476,
                                             columnNumber: 19
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/components/ChatSidebar.tsx",
-                                        lineNumber: 461,
+                                        lineNumber: 475,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/components/ChatSidebar.tsx",
-                                    lineNumber: 456,
+                                    lineNumber: 470,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/ChatSidebar.tsx",
-                            lineNumber: 445,
+                            lineNumber: 459,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/components/ChatSidebar.tsx",
-                        lineNumber: 444,
+                        lineNumber: 458,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/ChatSidebar.tsx",
-                lineNumber: 280,
+                lineNumber: 294,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/components/ChatSidebar.tsx",
-            lineNumber: 275,
+            lineNumber: 289,
             columnNumber: 7
         }, this)
     }, void 0, false);
@@ -1539,7 +1550,7 @@ const LAYER_CONFIG = [
         color: "#6B7280"
     }
 ];
-function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRefProp }) {
+function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, overlayEvent, mapRefProp }) {
     const mapContainer = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
     const map = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
     const [activeLayers, setActiveLayers] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([
@@ -1549,6 +1560,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
     ]);
     const [mapLoaded, setMapLoaded] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const [siteCoordinates, setSiteCoordinates] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
+    const overlayLayerIdRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
     // Use provided city coordinates or default to Atlanta
     const mapCenter = cityCenter || [
         __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$mapbox$2d$config$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MAPBOX_CONFIG"].atlantaCenter.lng,
@@ -1556,6 +1568,18 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
     ];
     const mapZoom = cityCenter ? 11.5 : __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$mapbox$2d$config$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MAPBOX_CONFIG"].atlantaCenter.zoom;
     const boundarySlug = citySlug || "atlanta";
+    const overlayLayerConfig = overlayEvent ? [
+        {
+            id: overlayEvent.layer_id || "demographic-hotspots",
+            label: overlayEvent.title || "Demographic Hotspots",
+            color: "#0F6F51",
+            description: overlayEvent.description || "Highlighted tracts from the Demographics Agent"
+        }
+    ] : [];
+    const layerControlConfig = [
+        ...LAYER_CONFIG,
+        ...overlayLayerConfig
+    ];
     // Expose methods via ref
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         if (mapRefProp) {
@@ -1598,6 +1622,65 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
         mapRefProp,
         siteCoordinates,
         recommendations
+    ]);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
+        if (!map.current || !mapLoaded || !overlayEvent || !overlayEvent.geojson) {
+            return;
+        }
+        const sourceId = overlayEvent.layer_id || "demographic-hotspots";
+        const layerId = sourceId;
+        const overlayData = overlayEvent.geojson;
+        overlayLayerIdRef.current = layerId;
+        if (map.current.getSource(sourceId)) {
+            map.current.getSource(sourceId).setData(overlayData);
+        } else {
+            map.current.addSource(sourceId, {
+                type: "geojson",
+                data: overlayData
+            });
+            map.current.addLayer({
+                id: layerId,
+                type: "fill",
+                source: sourceId,
+                paint: {
+                    "fill-color": [
+                        "interpolate",
+                        [
+                            "linear"
+                        ],
+                        [
+                            "get",
+                            "poverty_rate"
+                        ],
+                        0,
+                        "#E8F8F3",
+                        20,
+                        "#A3E3CF",
+                        40,
+                        "#47C79F",
+                        60,
+                        "#0F6F51"
+                    ],
+                    "fill-opacity": 0.6
+                }
+            });
+            map.current.addLayer({
+                id: `${layerId}-outline`,
+                type: "line",
+                source: sourceId,
+                paint: {
+                    "line-color": "#0F172A",
+                    "line-width": 1.2
+                }
+            });
+        }
+        setActiveLayers((prev)=>prev.includes(layerId) ? prev : [
+                ...prev,
+                layerId
+            ]);
+    }, [
+        overlayEvent,
+        mapLoaded
     ]);
     // Initialize map
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
@@ -1863,7 +1946,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                         children: cityName ? `${cityName} WiFi Network Map` : "Interactive Site Map"
                     }, void 0, false, {
                         fileName: "[project]/components/InteractiveMap.tsx",
-                        lineNumber: 478,
+                        lineNumber: 553,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1885,16 +1968,16 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                 }
                             }, void 0, false, {
                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                lineNumber: 487,
+                                lineNumber: 562,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$MapLayerControl$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
-                                layers: LAYER_CONFIG,
+                                layers: layerControlConfig,
                                 activeLayers: activeLayers,
                                 onToggle: toggleLayer
                             }, void 0, false, {
                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                lineNumber: 501,
+                                lineNumber: 576,
                                 columnNumber: 13
                             }, this),
                             !__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$mapbox$2d$config$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MAPBOX_CONFIG"].accessToken && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1907,7 +1990,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                             children: "Mapbox API Key Required"
                                         }, void 0, false, {
                                             fileName: "[project]/components/InteractiveMap.tsx",
-                                            lineNumber: 511,
+                                            lineNumber: 586,
                                             columnNumber: 19
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1915,24 +1998,24 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                             children: "Add NEXT_PUBLIC_MAPBOX_TOKEN to .env.local"
                                         }, void 0, false, {
                                             fileName: "[project]/components/InteractiveMap.tsx",
-                                            lineNumber: 514,
+                                            lineNumber: 589,
                                             columnNumber: 19
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/InteractiveMap.tsx",
-                                    lineNumber: 510,
+                                    lineNumber: 585,
                                     columnNumber: 17
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                lineNumber: 509,
+                                lineNumber: 584,
                                 columnNumber: 15
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/InteractiveMap.tsx",
-                        lineNumber: 483,
+                        lineNumber: 558,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1945,7 +2028,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                         children: "Census Data"
                                     }, void 0, false, {
                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                        lineNumber: 525,
+                                        lineNumber: 600,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1958,7 +2041,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         className: "w-4 h-4 rounded bg-[#19B987]"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 528,
+                                                        lineNumber: 603,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1966,13 +2049,13 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         children: "High Poverty"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 529,
+                                                        lineNumber: 604,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                                lineNumber: 527,
+                                                lineNumber: 602,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1982,7 +2065,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         className: "w-4 h-4 rounded bg-[#2691FF]"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 532,
+                                                        lineNumber: 607,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1990,25 +2073,25 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         children: "Low Internet Access"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 533,
+                                                        lineNumber: 608,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                                lineNumber: 531,
+                                                lineNumber: 606,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                        lineNumber: 526,
+                                        lineNumber: 601,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                lineNumber: 524,
+                                lineNumber: 599,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2018,7 +2101,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                         children: "Local Assets"
                                     }, void 0, false, {
                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                        lineNumber: 538,
+                                        lineNumber: 613,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2031,7 +2114,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         className: "w-4 h-4 rounded-full bg-[#7C3AED]"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 541,
+                                                        lineNumber: 616,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2039,13 +2122,13 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         children: "Libraries"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 542,
+                                                        lineNumber: 617,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                                lineNumber: 540,
+                                                lineNumber: 615,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2055,7 +2138,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         className: "w-4 h-4 rounded-full bg-[#DC2626]"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 545,
+                                                        lineNumber: 620,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2063,13 +2146,13 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         children: "Community Centers"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 546,
+                                                        lineNumber: 621,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                                lineNumber: 544,
+                                                lineNumber: 619,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2079,7 +2162,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         className: "w-4 h-4 rounded-full bg-[#7DBDFF]"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 549,
+                                                        lineNumber: 624,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2087,25 +2170,25 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         children: "Transit Stops"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 550,
+                                                        lineNumber: 625,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                                lineNumber: 548,
+                                                lineNumber: 623,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                        lineNumber: 539,
+                                        lineNumber: 614,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                lineNumber: 537,
+                                lineNumber: 612,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2115,7 +2198,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                         children: "WiFi Sites"
                                     }, void 0, false, {
                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                        lineNumber: 555,
+                                        lineNumber: 630,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2128,7 +2211,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         className: "w-4 h-4 rounded-full bg-[#2691FF]"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 558,
+                                                        lineNumber: 633,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2136,13 +2219,13 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         children: "Candidate Sites"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 559,
+                                                        lineNumber: 634,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                                lineNumber: 557,
+                                                lineNumber: 632,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2152,7 +2235,7 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         className: "w-4 h-4 rounded-full bg-[#6B7280]"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 562,
+                                                        lineNumber: 637,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2160,47 +2243,47 @@ function InteractiveMap({ cityCenter, cityName, citySlug, recommendations, mapRe
                                                         children: "Existing WiFi"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                                        lineNumber: 563,
+                                                        lineNumber: 638,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                                lineNumber: 561,
+                                                lineNumber: 636,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/InteractiveMap.tsx",
-                                        lineNumber: 556,
+                                        lineNumber: 631,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/InteractiveMap.tsx",
-                                lineNumber: 554,
+                                lineNumber: 629,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/InteractiveMap.tsx",
-                        lineNumber: 523,
+                        lineNumber: 598,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/InteractiveMap.tsx",
-                lineNumber: 477,
+                lineNumber: 552,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/components/InteractiveMap.tsx",
-            lineNumber: 476,
+            lineNumber: 551,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/InteractiveMap.tsx",
-        lineNumber: 475,
+        lineNumber: 550,
         columnNumber: 5
     }, this);
 }
@@ -2848,6 +2931,7 @@ function DashboardPage({ params }) {
     const [isChatOpen, setIsChatOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(true);
     const [isRecommendationsOpen, setIsRecommendationsOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const [recommendations, setRecommendations] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
+    const [mapOverlay, setMapOverlay] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
     const mapRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         // Retrieve city data from localStorage
@@ -2869,6 +2953,9 @@ function DashboardPage({ params }) {
             mapRef.current.showRecommendations(plan);
         }
     };
+    const handleMapOverlayReceived = (overlay)=>{
+        setMapOverlay(overlay);
+    };
     const handleSiteClick = (siteIndex)=>{
         // Center map on the clicked site
         if (mapRef.current && mapRef.current.centerOnSite) {
@@ -2883,12 +2970,12 @@ function DashboardPage({ params }) {
                 children: "Loading dashboard..."
             }, void 0, false, {
                 fileName: "[project]/app/dashboard/[city]/page.tsx",
-                lineNumber: 118,
+                lineNumber: 123,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/app/dashboard/[city]/page.tsx",
-            lineNumber: 117,
+            lineNumber: 122,
             columnNumber: 7
         }, this);
     }
@@ -2899,10 +2986,11 @@ function DashboardPage({ params }) {
                 isOpen: isChatOpen,
                 onClose: ()=>setIsChatOpen(false),
                 cityName: cityData.name,
-                onRecommendationsReceived: handleRecommendationsReceived
+                onRecommendationsReceived: handleRecommendationsReceived,
+                onMapOverlayReceived: handleMapOverlayReceived
             }, void 0, false, {
                 fileName: "[project]/app/dashboard/[city]/page.tsx",
-                lineNumber: 126,
+                lineNumber: 131,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$RecommendationsSidebar$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -2912,7 +3000,7 @@ function DashboardPage({ params }) {
                 onSiteClick: handleSiteClick
             }, void 0, false, {
                 fileName: "[project]/app/dashboard/[city]/page.tsx",
-                lineNumber: 134,
+                lineNumber: 140,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$DashboardHeader$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -2921,7 +3009,7 @@ function DashboardPage({ params }) {
                 cityName: cityData.name
             }, void 0, false, {
                 fileName: "[project]/app/dashboard/[city]/page.tsx",
-                lineNumber: 142,
+                lineNumber: 148,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2933,26 +3021,27 @@ function DashboardPage({ params }) {
                         cityName: cityData.name,
                         citySlug: cityData.slug,
                         recommendations: recommendations,
+                        overlayEvent: mapOverlay,
                         mapRefProp: mapRef
                     }, void 0, false, {
                         fileName: "[project]/app/dashboard/[city]/page.tsx",
-                        lineNumber: 158,
+                        lineNumber: 164,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/app/dashboard/[city]/page.tsx",
-                    lineNumber: 156,
+                    lineNumber: 162,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/dashboard/[city]/page.tsx",
-                lineNumber: 149,
+                lineNumber: 155,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/dashboard/[city]/page.tsx",
-        lineNumber: 124,
+        lineNumber: 129,
         columnNumber: 5
     }, this);
 }

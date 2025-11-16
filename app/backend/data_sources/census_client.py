@@ -2,20 +2,23 @@
 Census ACS Data Client
 Fetches demographic data from US Census Bureau API
 """
-import httpx
-from typing import Dict, List, Optional
+from typing import Dict, List
 from census import Census
-from us import states
 
-class CensusDataClient:
-    """Client for fetching Census ACS (American Community Survey) data"""
+ACS_YEAR = 2020  # Latest ACS 5-year release with tract geography support
+
+
+class CensusClient:
+    """Client for fetching Census ACS (American Community Survey) data."""
 
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.census = Census(api_key)
         self.base_url = "https://api.census.gov/data"
 
-    async def get_poverty_data(self, state_fips: str = "13") -> List[Dict]:
+    def get_poverty_data(
+        self, state_fips: str = "13", year: int = ACS_YEAR
+    ) -> List[Dict]:
         """
         Fetch poverty rate data for census tracts in a state
 
@@ -34,7 +37,7 @@ class CensusDataClient:
                 state_fips=state_fips,
                 county_fips=Census.ALL,
                 tract=Census.ALL,
-                year=2022
+                year=year
             )
 
             results = []
@@ -62,7 +65,9 @@ class CensusDataClient:
             print(f"Error fetching poverty data: {e}")
             return []
 
-    async def get_internet_access_data(self, state_fips: str = "13") -> List[Dict]:
+    def get_internet_access_data(
+        self, state_fips: str = "13", year: int = ACS_YEAR
+    ) -> List[Dict]:
         """
         Fetch internet access data for census tracts
 
@@ -81,7 +86,7 @@ class CensusDataClient:
                 state_fips=state_fips,
                 county_fips=Census.ALL,
                 tract=Census.ALL,
-                year=2022
+                year=year
             )
 
             results = []
@@ -109,7 +114,9 @@ class CensusDataClient:
             print(f"Error fetching internet access data: {e}")
             return []
 
-    async def get_student_population_data(self, state_fips: str = "13") -> List[Dict]:
+    def get_student_population_data(
+        self, state_fips: str = "13", year: int = ACS_YEAR
+    ) -> List[Dict]:
         """
         Fetch school-age population data for census tracts
 
@@ -128,7 +135,7 @@ class CensusDataClient:
                 state_fips=state_fips,
                 county_fips=Census.ALL,
                 tract=Census.ALL,
-                year=2022
+                year=year
             )
 
             results = []
@@ -156,7 +163,9 @@ class CensusDataClient:
             print(f"Error fetching student population data: {e}")
             return []
 
-    async def get_combined_data(self, state_fips: str = "13") -> List[Dict]:
+    def get_combined_data(
+        self, state_fips: str = "13", year: int = ACS_YEAR
+    ) -> List[Dict]:
         """
         Fetch and combine all relevant demographic data
 
@@ -166,9 +175,9 @@ class CensusDataClient:
         Returns:
             List of dicts with combined tract data
         """
-        poverty_data = await self.get_poverty_data(state_fips)
-        internet_data = await self.get_internet_access_data(state_fips)
-        student_data = await self.get_student_population_data(state_fips)
+        poverty_data = self.get_poverty_data(state_fips, year=year)
+        internet_data = self.get_internet_access_data(state_fips, year=year)
+        student_data = self.get_student_population_data(state_fips, year=year)
 
         # Merge data by tract ID
         combined = {}

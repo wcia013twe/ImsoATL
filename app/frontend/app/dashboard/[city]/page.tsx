@@ -7,7 +7,7 @@ import PrioritySliders from '@/components/PrioritySliders';
 import InteractiveMap from '@/components/InteractiveMap';
 import RecommendationsSidebar from '@/components/RecommendationsSidebar';
 import Footer from '@/components/Footer';
-import type { DeploymentPlan } from '@/lib/types';
+import type { DeploymentPlan, MapOverlayEvent } from '@/lib/types';
 
 type CityData = {
   id: number;
@@ -77,6 +77,7 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [isRecommendationsOpen, setIsRecommendationsOpen] = useState(false);
   const [recommendations, setRecommendations] = useState<DeploymentPlan | null>(null);
+  const [mapOverlay, setMapOverlay] = useState<MapOverlayEvent | null>(null);
   const mapRef = useRef<{
     showRecommendations: (plan: DeploymentPlan) => void;
     centerOnSite: (siteIndex: number) => void;
@@ -105,6 +106,10 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
     }
   };
 
+  const handleMapOverlayReceived = (overlay: MapOverlayEvent) => {
+    setMapOverlay(overlay);
+  };
+
   const handleSiteClick = (siteIndex: number) => {
     // Center map on the clicked site
     if (mapRef.current && mapRef.current.centerOnSite) {
@@ -128,6 +133,7 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
         onClose={() => setIsChatOpen(false)}
         cityName={cityData.name}
         onRecommendationsReceived={handleRecommendationsReceived}
+        onMapOverlayReceived={handleMapOverlayReceived}
       />
 
       {/* Recommendations Sidebar (Right) */}
@@ -160,6 +166,7 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
             cityName={cityData.name}
             citySlug={cityData.slug}
             recommendations={recommendations}
+            overlayEvent={mapOverlay}
             mapRefProp={mapRef}
           />
           {/* <Footer /> */}

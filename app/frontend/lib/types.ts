@@ -1,6 +1,7 @@
 /**
  * TypeScript types for WiFi assistant messages and data
  */
+import type { FeatureCollection } from 'geojson';
 
 export type MessageRole = 'user' | 'assistant';
 
@@ -111,8 +112,17 @@ export interface AssetsSummary {
   counties_covered: number;
 }
 
+export interface MapOverlayEvent {
+  layer_id?: string;
+  overlay_id?: string;
+  title?: string;
+  description?: string;
+  geojson: FeatureCollection;
+  metadata?: Record<string, any>;
+}
+
 export interface WebSocketMessage {
-  type: 'agent_step' | 'final_response' | 'error';
+  type: 'agent_step' | 'final_response' | 'error' | 'map_overlay';
   agent?: string;
   action?: string;
   status?: AgentStepStatus;
@@ -126,4 +136,10 @@ export interface WebSocketMessage {
     assets: AssetsSummary;
   };
   message?: string;
+  layer_id?: string;
+  overlay_id?: string;
+  title?: string;
+  description?: string;
+  geojson?: FeatureCollection;
+  metadata?: Record<string, any>;
 }

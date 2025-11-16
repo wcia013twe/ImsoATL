@@ -6,7 +6,8 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import * as turf from "@turf/turf";
 import { MAPBOX_CONFIG, MAP_LAYERS } from "@/lib/mapbox-config";
 import MapLayerControl from "./MapLayerControl";
-import type { DeploymentPlan } from "@/lib/types";
+import type { DeploymentPlan, MapOverlayEvent } from "@/lib/types";
+import type { FeatureCollection } from "geojson";
 
 // Mock data sources - replace with real data in backend integration
 const MOCK_DATA = {
@@ -90,12 +91,14 @@ export default function InteractiveMap({
   cityName,
   citySlug,
   recommendations,
+  overlayEvent,
   mapRefProp,
 }: {
   cityCenter?: [number, number];
   cityName?: string;
   citySlug?: string;
   recommendations?: DeploymentPlan | null;
+  overlayEvent?: MapOverlayEvent | null;
   mapRefProp?: React.MutableRefObject<{
     showRecommendations: (plan: DeploymentPlan) => void;
     centerOnSite: (siteIndex: number) => void;
@@ -110,6 +113,7 @@ export default function InteractiveMap({
   ]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [siteCoordinates, setSiteCoordinates] = useState<[number, number][]>([]);
+  const overlayLayerIdRef = useRef<string | null>(null);
 
   // Use provided city coordinates or default to Atlanta
   const mapCenter = cityCenter || [
@@ -118,6 +122,19 @@ export default function InteractiveMap({
   ];
   const mapZoom = cityCenter ? 11.5 : MAPBOX_CONFIG.atlantaCenter.zoom;
   const boundarySlug = citySlug || "atlanta";
+  const overlayLayerConfig = overlayEvent
+    ? [
+        {
+          id: overlayEvent.layer_id || "demographic-hotspots",
+          label: overlayEvent.title || "Demographic Hotspots",
+          color: "#0F6F51",
+          description:
+            overlayEvent.description ||
+            "Highlighted tracts from the Demographics Agent",
+        },
+      ]
+    : [];
+  const layerControlConfig = [...LAYER_CONFIG, ...overlayLayerConfig];
 
   // Expose methods via ref
   useEffect(() => {
@@ -166,6 +183,64 @@ export default function InteractiveMap({
       };
     }
   }, [mapRefProp, siteCoordinates, recommendations]);
+
+  useEffect(() => {
+    if (!map.current || !mapLoaded || !overlayEvent || !overlayEvent.geojson) {
+      return;
+    }
+
+    const sourceId = overlayEvent.layer_id || "demographic-hotspots";
+    const layerId = sourceId;
+    const overlayData = overlayEvent.geojson as FeatureCollection;
+    overlayLayerIdRef.current = layerId;
+
+    if (map.current.getSource(sourceId)) {
+      (map.current.getSource(sourceId) as mapboxgl.GeoJSONSource).setData(
+        overlayData as any
+      );
+    } else {
+      map.current.addSource(sourceId, {
+        type: "geojson",
+        data: overlayData,
+      });
+
+      map.current.addLayer({
+        id: layerId,
+        type: "fill",
+        source: sourceId,
+        paint: {
+          "fill-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "poverty_rate"],
+            0,
+            "#E8F8F3",
+            20,
+            "#A3E3CF",
+            40,
+            "#47C79F",
+            60,
+            "#0F6F51",
+          ],
+          "fill-opacity": 0.6,
+        },
+      });
+
+      map.current.addLayer({
+        id: `${layerId}-outline`,
+        type: "line",
+        source: sourceId,
+        paint: {
+          "line-color": "#0F172A",
+          "line-width": 1.2,
+        },
+      });
+    }
+
+    setActiveLayers((prev) =>
+      prev.includes(layerId) ? prev : [...prev, layerId]
+    );
+  }, [overlayEvent, mapLoaded]);
 
   // Initialize map
   useEffect(() => {
@@ -499,7 +574,7 @@ export default function InteractiveMap({
 
             {/* Layer Control */}
             <MapLayerControl
-              layers={LAYER_CONFIG}
+              layers={layerControlConfig}
               activeLayers={activeLayers}
               onToggle={toggleLayer}
             />

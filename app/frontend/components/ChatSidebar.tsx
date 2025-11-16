@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import type { ChatMessage, AgentStep, WebSocketMessage, DeploymentPlan } from '@/lib/types';
+import type { ChatMessage, AgentStep, WebSocketMessage, DeploymentPlan, MapOverlayEvent } from '@/lib/types';
 
 const WEBSOCKET_URL = 'ws://localhost:8000/ws/chat';
 const STORAGE_KEY = 'atlas-chat-messages';
@@ -40,12 +40,14 @@ export default function ChatSidebar({
   isOpen,
   onClose,
   cityName,
-  onRecommendationsReceived
+  onRecommendationsReceived,
+  onMapOverlayReceived
 }: {
   isOpen: boolean;
   onClose: () => void;
   cityName?: string;
   onRecommendationsReceived?: (plan: DeploymentPlan) => void;
+  onMapOverlayReceived?: (overlay: MapOverlayEvent) => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(getInitialMessages);
   const [inputValue, setInputValue] = useState('');
@@ -117,6 +119,18 @@ export default function ChatSidebar({
 
     ws.onmessage = (event) => {
       const data: WebSocketMessage = JSON.parse(event.data);
+
+      if (data.type === 'map_overlay' && data.geojson) {
+        onMapOverlayReceived?.({
+          layer_id: data.layer_id,
+          overlay_id: data.overlay_id,
+          title: data.title,
+          description: data.description,
+          geojson: data.geojson,
+          metadata: data.metadata
+        });
+        return;
+      }
 
       if (data.type === 'agent_step') {
         const agentStep: AgentStep = {
