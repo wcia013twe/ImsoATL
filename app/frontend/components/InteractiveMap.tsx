@@ -113,12 +113,13 @@ export default function InteractiveMap({
           console.log('Show recommendations:', plan);
         },
         centerOnSite: (siteIndex: number) => {
+          console.log('centerOnSite called with index:', siteIndex, 'map:', !!map.current, 'recommendations:', !!recommendations);
           if (map.current && recommendations) {
             const site = recommendations.recommended_sites[siteIndex];
             const tractId = site.tract_id;
 
             // Select the tract to show polygon
-            console.log('🎯 Selecting tract from sidebar click:', tractId);
+            console.log('🎯 Selecting tract from sidebar click:', tractId, 'site:', site);
             setSelectedTractId(tractId);
 
             // Set selected site coordinates for WiFi coverage circle

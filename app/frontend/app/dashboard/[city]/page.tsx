@@ -61,9 +61,13 @@ function DashboardContent({ params }: { params: { city: string } }) {
   };
 
   const handleSiteClick = (siteIndex: number) => {
+    console.log('handleSiteClick called with index:', siteIndex, 'mapRef.current:', mapRef.current);
     // Center map on the clicked site
     if (mapRef.current && mapRef.current.centerOnSite) {
+      console.log('Calling centerOnSite...');
       mapRef.current.centerOnSite(siteIndex);
+    } else {
+      console.warn('mapRef.current or centerOnSite not available');
     }
   };
 
