@@ -155,3 +155,4 @@ app/data/cache/*
 
 *.csv
 *.gpkg
+data/tl_2024_12_tabblock20
