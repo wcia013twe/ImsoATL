@@ -135,7 +135,7 @@ export default function InteractiveMap({
                   map.current.fitBounds(bounds, {
                     padding: 100,
                     duration: 1000,
-                    maxZoom: 13
+                    maxZoom: 3
                   });
 
                   console.log(`Zoomed to tract ${tractId} bounds`);
