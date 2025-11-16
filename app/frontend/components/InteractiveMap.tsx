@@ -49,6 +49,7 @@ export default function InteractiveMap({
   mapRefProp,
   tractGeometries,
   allWifiZones,
+  onTractClick,
 }: {
   cityCenter?: [number, number];
   cityName?: string;
@@ -61,6 +62,7 @@ export default function InteractiveMap({
   } | null>;
   tractGeometries?: any; // GeoJSON FeatureCollection from pipeline
   allWifiZones?: Record<string, any[]>; // Map of geoid -> WiFi zones for all tracts
+  onTractClick?: (tractId: string, tractData: any) => void;
 }) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);

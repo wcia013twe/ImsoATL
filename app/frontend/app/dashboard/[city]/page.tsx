@@ -154,8 +154,8 @@ function DashboardContent({ params }: { params: { city: string } }) {
 
   return (
     <div className="min-h-screen bg-background flex">
-        {/* Chat Sidebar (Left) */}
-        <ChatSidebar
+      {/* Chat Sidebar (Left) */}
+      <ChatSidebar
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         cityName={cityData.name}
