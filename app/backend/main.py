@@ -31,7 +31,10 @@ app.add_middleware(
 
 # Register routers
 from routers.boundaries import router as boundaries_router
+from routers.deployment import router as deployment_router
+
 app.include_router(boundaries_router)
+app.include_router(deployment_router)
 
 @app.get("/")
 async def root():

@@ -40,6 +40,13 @@ export interface RecommendedSite {
   nearby_anchors?: CivicAsset[];
   need_score?: number;
   impact_score?: number;
+  student_population?: number;
+  nearest_library?: string;
+  nearest_community_center?: string;
+  centroid?: {
+    lng: number;
+    lat: number;
+  };
 }
 
 export interface CivicAsset {

@@ -9,56 +9,6 @@ import MapLayerControl from "./MapLayerControl";
 import type { DeploymentPlan } from "@/lib/types";
 import { fetchBoundaryFromAPI, type Location } from "@/utils/boundariesApi";
 
-// Mock data sources - replace with real data in backend integration
-const MOCK_DATA = {
-  atlantaBoundary: {
-    type: "FeatureCollection" as const,
-    features: [
-      {
-        type: "Feature" as const,
-        geometry: {
-          type: "Polygon" as const,
-          coordinates: [
-            [
-              [-84.55, 33.65],
-              [-84.55, 33.89],
-              [-84.29, 33.89],
-              [-84.29, 33.65],
-              [-84.55, 33.65],
-            ],
-          ],
-        },
-        properties: {},
-      },
-    ],
-  },
-  libraries: {
-    type: "FeatureCollection" as const,
-    features: [
-      {
-        type: "Feature" as const,
-        geometry: { type: "Point" as const, coordinates: [-84.408, 33.749] },
-        properties: { name: "Central Library", type: "library" },
-      },
-      {
-        type: "Feature" as const,
-        geometry: { type: "Point" as const, coordinates: [-84.428, 33.738] },
-        properties: { name: "Southwest Library", type: "library" },
-      },
-    ],
-  },
-  candidateSites: {
-    type: "FeatureCollection" as const,
-    features: [
-      {
-        type: "Feature" as const,
-        geometry: { type: "Point" as const, coordinates: [-84.408, 33.755] },
-        properties: { name: "Candidate Site 1", reach: 2200, equityScore: 9.2 },
-      },
-    ],
-  },
-};
-
 const LAYER_CONFIG = [
   { id: "city-boundary", label: "City Boundary", color: "#2691FF" },
   {
@@ -79,41 +29,46 @@ const LAYER_CONFIG = [
     color: "#FFB84D",
     description: "Federal broadband data",
   },
-  { id: "libraries", label: "Libraries", color: "#7C3AED" },
-  { id: "community-centers", label: "Community Centers", color: "#DC2626" },
-  { id: "transit-stops", label: "Transit Stops", color: "#7DBDFF" },
   { id: "candidate-sites", label: "Candidate Sites", color: "#2691FF" },
-  { id: "existing-wifi", label: "Existing WiFi", color: "#6B7280" },
 ];
+
+export interface CandidateSite {
+  name: string;
+  coordinates: [number, number];
+  reach?: number;
+  equityScore?: number;
+  [key: string]: any;
+}
 
 export default function InteractiveMap({
   cityCenter,
   cityName,
-  citySlug,
   location,
+  candidateSites,
   recommendations,
   mapRefProp,
+  tractGeometries,
 }: {
   cityCenter?: [number, number];
   cityName?: string;
-  citySlug?: string;
   location?: Location;
+  candidateSites?: CandidateSite[];
   recommendations?: DeploymentPlan | null;
   mapRefProp?: React.MutableRefObject<{
     showRecommendations: (plan: DeploymentPlan) => void;
     centerOnSite: (siteIndex: number) => void;
   } | null>;
+  tractGeometries?: any; // GeoJSON FeatureCollection from pipeline
 }) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [activeLayers, setActiveLayers] = useState<string[]>([
     "city-boundary",
-    "libraries",
-    "candidate-sites",
   ]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [siteCoordinates, setSiteCoordinates] = useState<[number, number][]>([]);
   const [boundaryData, setBoundaryData] = useState<GeoJSON.Feature | null>(null);
+  const [selectedTractId, setSelectedTractId] = useState<string | null>(null);
 
   // Use provided city coordinates or default to Atlanta
   const mapCenter = cityCenter || [
@@ -153,44 +108,84 @@ export default function InteractiveMap({
           console.log('Show recommendations:', plan);
         },
         centerOnSite: (siteIndex: number) => {
-          if (siteCoordinates[siteIndex] && map.current && recommendations) {
-            const coords = siteCoordinates[siteIndex];
+          if (map.current && recommendations) {
             const site = recommendations.recommended_sites[siteIndex];
+            const tractId = site.tract_id;
 
-            // Fly to the site location
-            map.current.flyTo({
-              center: coords,
-              zoom: 14,
-              duration: 1000,
-              essential: true
-            });
+            // Select the tract to show polygon
+            console.log('🎯 Selecting tract from sidebar click:', tractId);
+            setSelectedTractId(tractId);
 
-            // Open popup after a short delay to ensure map has centered
+            // Try to find the tract geometry and zoom to it
+            if (tractGeometries && tractGeometries.features) {
+              const tractFeature = tractGeometries.features.find((f: any) =>
+                f.properties?.geoid === tractId || f.properties?.GEOID === tractId
+              );
+
+              if (tractFeature && tractFeature.geometry) {
+                try {
+                  // Calculate bounds of the tract polygon using turf
+                  const bbox = turf.bbox(tractFeature);
+                  const bounds: [[number, number], [number, number]] = [
+                    [bbox[0], bbox[1]],
+                    [bbox[2], bbox[3]]
+                  ];
+
+                  // Fit map to tract bounds
+                  map.current.fitBounds(bounds, {
+                    padding: 100,
+                    duration: 1000,
+                    maxZoom: 13
+                  });
+
+                  console.log(`Zoomed to tract ${tractId} bounds`);
+                } catch (error) {
+                  console.error('Error calculating tract bounds:', error);
+                  // Fallback to centroid if bounds calculation fails
+                  if (siteCoordinates[siteIndex]) {
+                    map.current.flyTo({
+                      center: siteCoordinates[siteIndex],
+                      zoom: 13,
+                      duration: 1000
+                    });
+                  }
+                }
+              } else if (siteCoordinates[siteIndex]) {
+                // Fallback to centroid if geometry not found
+                map.current.flyTo({
+                  center: siteCoordinates[siteIndex],
+                  zoom: 13,
+                  duration: 1000
+                });
+              }
+            }
+
+            // Show popup with site info after a short delay
             setTimeout(() => {
-              if (!map.current) return;
+              if (!map.current || !siteCoordinates[siteIndex]) return;
 
               new mapboxgl.Popup()
-                .setLngLat(coords)
+                .setLngLat(siteCoordinates[siteIndex])
                 .setHTML(
                   `
                   <div style="font-family: system-ui; padding: 4px;">
                     <strong style="color: #1f2937; font-size: 14px;">${site.name || `Site ${siteIndex + 1}`}</strong><br/>
                     <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
                       <div><strong>Score:</strong> ${site.composite_score}/100</div>
-                      <div><strong>Poverty Rate:</strong> ${site.poverty_rate}%</div>
-                      <div><strong>No Internet:</strong> ${site.no_internet_pct}%</div>
+                      <div><strong>Poverty Rate:</strong> ${site.poverty_rate.toFixed(2)}%</div>
+                      <div><strong>No Internet:</strong> ${site.no_internet_pct.toFixed(2)}%</div>
                       <div><strong>Priority:</strong> ${site.recommendation_tier}</div>
                     </div>
                   </div>
                 `
                 )
                 .addTo(map.current);
-            }, 500);
+            }, 800);
           }
         }
       };
     }
-  }, [mapRefProp, siteCoordinates, recommendations]);
+  }, [mapRefProp, siteCoordinates, recommendations, tractGeometries]);
 
   // Initialize map
   useEffect(() => {
@@ -208,74 +203,6 @@ export default function InteractiveMap({
     map.current.on("load", () => {
       if (!map.current) return;
 
-      // Add other data sources
-      map.current.addSource("libraries", {
-        type: "geojson",
-        data: MOCK_DATA.libraries,
-      });
-
-      map.current.addSource("candidate-sites", {
-        type: "geojson",
-        data: MOCK_DATA.candidateSites,
-      });
-
-      // Add other layers
-      map.current.addLayer(MAP_LAYERS.libraries);
-      map.current.addLayer(MAP_LAYERS.candidateSites);
-
-      // Add click handlers for popups with centering
-      map.current.on("click", "libraries", (e) => {
-        if (!map.current || !e.features || !e.features[0]) return;
-        const feature = e.features[0];
-
-        // Center map on clicked point
-        map.current.flyTo({
-          center: e.lngLat,
-          zoom: 14,
-          duration: 1000,
-          essential: true
-        });
-
-        new mapboxgl.Popup()
-          .setLngLat(e.lngLat)
-          .setHTML(
-            `<strong>${feature.properties?.name}</strong><br/>Type: Library`
-          )
-          .addTo(map.current);
-      });
-
-      map.current.on("click", "candidate-sites", (e) => {
-        if (!map.current || !e.features || !e.features[0]) return;
-        const feature = e.features[0];
-
-        // Center map on clicked point
-        map.current.flyTo({
-          center: e.lngLat,
-          zoom: 14,
-          duration: 1000,
-          essential: true
-        });
-
-        new mapboxgl.Popup()
-          .setLngLat(e.lngLat)
-          .setHTML(
-            `
-            <strong>${feature.properties?.name}</strong><br/>
-            Reach: ${feature.properties?.reach} residents<br/>
-            Equity Score: ${feature.properties?.equityScore}
-          `
-          )
-          .addTo(map.current);
-      });
-
-      // Change cursor on hover
-      map.current.on("mouseenter", "libraries", () => {
-        if (map.current) map.current.getCanvas().style.cursor = "pointer";
-      });
-      map.current.on("mouseleave", "libraries", () => {
-        if (map.current) map.current.getCanvas().style.cursor = "";
-      });
-
       setMapLoaded(true);
     });
 
@@ -284,6 +211,32 @@ export default function InteractiveMap({
       map.current = null;
     };
   }, [mapCenter, mapZoom]);
+
+  // Resize map when container size changes (e.g., when sidebars open/close)
+  useEffect(() => {
+    if (!map.current || !mapLoaded) return;
+
+    // Use ResizeObserver to detect container size changes
+    const resizeObserver = new ResizeObserver(() => {
+      if (map.current) {
+        // Small delay to ensure container has finished resizing
+        setTimeout(() => {
+          if (map.current) {
+            map.current.resize();
+            console.log('Map resized due to container change');
+          }
+        }, 100);
+      }
+    });
+
+    if (mapContainer.current) {
+      resizeObserver.observe(mapContainer.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [mapLoaded]);
 
   // Add boundary to map when boundaryData is available
   useEffect(() => {
@@ -346,24 +299,113 @@ export default function InteractiveMap({
     }
   }, [boundaryData, mapLoaded, location]);
 
+  // Update candidate sites when they change
+  useEffect(() => {
+    if (!map.current || !mapLoaded) return;
+
+    // Remove existing candidate sites layer and source if present
+    if (map.current.getLayer("candidate-sites")) {
+      map.current.removeLayer("candidate-sites");
+    }
+    if (map.current.getSource("candidate-sites")) {
+      map.current.removeSource("candidate-sites");
+    }
+
+    // Add candidate sites if provided
+    if (candidateSites && candidateSites.length > 0) {
+      const candidateSitesGeoJSON = {
+        type: "FeatureCollection" as const,
+        features: candidateSites.map((site) => ({
+          type: "Feature" as const,
+          geometry: {
+            type: "Point" as const,
+            coordinates: site.coordinates,
+          },
+          properties: {
+            ...site,
+          },
+        })),
+      };
+
+      map.current.addSource("candidate-sites", {
+        type: "geojson",
+        data: candidateSitesGeoJSON,
+      });
+
+      map.current.addLayer(MAP_LAYERS.candidateSites);
+
+      // Add click handler for candidate sites
+      map.current.on("click", "candidate-sites", (e) => {
+        if (!map.current || !e.features || !e.features[0]) return;
+        const feature = e.features[0];
+
+        map.current.flyTo({
+          center: e.lngLat,
+          zoom: 14,
+          duration: 1000,
+          essential: true
+        });
+
+        new mapboxgl.Popup()
+          .setLngLat(e.lngLat)
+          .setHTML(
+            `
+            <strong>${feature.properties?.name}</strong><br/>
+            Reach: ${feature.properties?.reach} residents<br/>
+            Equity Score: ${feature.properties?.equityScore}
+          `
+          )
+          .addTo(map.current);
+      });
+
+      // Cursor handlers
+      map.current.on("mouseenter", "candidate-sites", () => {
+        if (map.current) map.current.getCanvas().style.cursor = "pointer";
+      });
+      map.current.on("mouseleave", "candidate-sites", () => {
+        if (map.current) map.current.getCanvas().style.cursor = "";
+      });
+
+      console.log(`Added ${candidateSites.length} candidate sites to map`);
+    }
+  }, [candidateSites, mapLoaded]);
+
   // Display recommendations when received
   useEffect(() => {
     if (!map.current || !mapLoaded || !recommendations) return;
 
-    // Convert recommendations to GeoJSON features
-    // Use city center as base with offsets for different sites
-    const centerLng = cityCenter?.[0] || -84.388;
-    const centerLat = cityCenter?.[1] || 33.749;
+    console.log('Displaying recommendations on map:', {
+      siteCount: recommendations.recommended_sites.length,
+      hasCentroids: recommendations.recommended_sites.some(s => s.centroid)
+    });
 
     // Store site coordinates for later reference
     const coordinates: [number, number][] = [];
 
     const recommendedFeatures = recommendations.recommended_sites.map(
       (site, index) => {
-        const coords: [number, number] = [
-          centerLng + (index % 3 - 1) * 0.05,
-          centerLat + (Math.floor(index / 3) - 1) * 0.05
-        ];
+        // Use centroid from pipeline if available, otherwise use fallback
+        let coords: [number, number];
+
+        if (site.centroid && site.centroid.lng && site.centroid.lat) {
+          // Use actual centroid from tract geometry
+          coords = [site.centroid.lng, site.centroid.lat];
+          if (index === 0) {
+            console.log(`Using centroid for ${site.name}:`, coords);
+          }
+        } else {
+          // Fallback to city center with offset (legacy behavior)
+          const centerLng = cityCenter?.[0] || -84.388;
+          const centerLat = cityCenter?.[1] || 33.749;
+          coords = [
+            centerLng + (index % 3 - 1) * 0.05,
+            centerLat + (Math.floor(index / 3) - 1) * 0.05
+          ];
+          if (index === 0) {
+            console.log(`Using fallback coordinates for ${site.name}:`, coords);
+          }
+        }
+
         coordinates.push(coords);
 
         return {
@@ -378,6 +420,7 @@ export default function InteractiveMap({
             poverty_rate: site.poverty_rate,
             no_internet_pct: site.no_internet_pct,
             recommendation_tier: site.recommendation_tier,
+            tract_id: site.tract_id,
           },
         };
       }
@@ -424,36 +467,91 @@ export default function InteractiveMap({
         },
       });
 
-      // Add popup on click and center map
+      // Add popup on click and zoom to tract polygon
       map.current.on("click", "ai-recommendations", (e) => {
         if (!map.current || !e.features || !e.features[0]) return;
         const feature = e.features[0];
         const props = feature.properties;
+        const tractId = props?.tract_id;
 
-        // Center map on clicked point with smooth animation
-        map.current.flyTo({
-          center: e.lngLat,
-          zoom: 14,
-          duration: 1000,
-          essential: true
-        });
+        // Select the tract to show polygon
+        if (tractId) {
+          console.log('🎯 Selecting tract from marker click:', tractId);
+          setSelectedTractId(tractId);
 
-        new mapboxgl.Popup()
-          .setLngLat(e.lngLat)
-          .setHTML(
-            `
-            <div style="font-family: system-ui; padding: 4px;">
-              <strong style="color: #1f2937; font-size: 14px;">${props?.name}</strong><br/>
-              <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
-                <div><strong>Score:</strong> ${props?.composite_score}/100</div>
-                <div><strong>Poverty Rate:</strong> ${props?.poverty_rate}%</div>
-                <div><strong>No Internet:</strong> ${props?.no_internet_pct}%</div>
-                <div><strong>Priority:</strong> ${props?.recommendation_tier}</div>
+          // Try to find the tract geometry and zoom to it
+          if (tractGeometries && tractGeometries.features) {
+            const tractFeature = tractGeometries.features.find((f: any) =>
+              f.properties?.geoid === tractId || f.properties?.GEOID === tractId
+            );
+
+            if (tractFeature && tractFeature.geometry) {
+              try {
+                // Calculate bounds of the tract polygon
+                const bbox = turf.bbox(tractFeature);
+                const bounds: [[number, number], [number, number]] = [
+                  [bbox[0], bbox[1]],
+                  [bbox[2], bbox[3]]
+                ];
+
+                // Fit map to tract bounds
+                map.current.fitBounds(bounds, {
+                  padding: 100,
+                  duration: 1000,
+                  maxZoom: 13
+                });
+
+                console.log(`Zoomed to tract ${tractId} from marker click`);
+              } catch (error) {
+                console.error('Error calculating tract bounds:', error);
+                // Fallback to point zoom
+                map.current.flyTo({
+                  center: e.lngLat,
+                  zoom: 13,
+                  duration: 1000,
+                  essential: true
+                });
+              }
+            } else {
+              // Fallback if geometry not found
+              map.current.flyTo({
+                center: e.lngLat,
+                zoom: 13,
+                duration: 1000,
+                essential: true
+              });
+            }
+          } else {
+            // Fallback if no geometries available
+            map.current.flyTo({
+              center: e.lngLat,
+              zoom: 13,
+              duration: 1000,
+              essential: true
+            });
+          }
+        }
+
+        // Show popup after zoom animation
+        setTimeout(() => {
+          if (!map.current) return;
+          new mapboxgl.Popup()
+            .setLngLat(e.lngLat)
+            .setHTML(
+              `
+              <div style="font-family: system-ui; padding: 4px;">
+                <strong style="color: #1f2937; font-size: 14px;">${props?.name}</strong><br/>
+                <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+                  <div><strong>Score:</strong> ${props?.composite_score}/100</div>
+                  <div><strong>Poverty Rate:</strong> ${props?.poverty_rate}%</div>
+                  <div><strong>No Internet:</strong> ${props?.no_internet_pct}%</div>
+                  <div><strong>Priority:</strong> ${props?.recommendation_tier}</div>
+                </div>
               </div>
-            </div>
-          `
-          )
-          .addTo(map.current);
+            `
+            )
+            .addTo(map.current);
+        }, 800);
       });
 
       map.current.on("mouseenter", "ai-recommendations", () => {
@@ -470,6 +568,170 @@ export default function InteractiveMap({
       setActiveLayers((prev) => [...prev, "ai-recommendations"]);
     }
   }, [recommendations, mapLoaded]);
+
+  // Add tract polygon layers for click interaction
+  useEffect(() => {
+    if (!map.current || !mapLoaded || !tractGeometries) return;
+
+    console.log('Adding tract geometries to map:', {
+      featureCount: tractGeometries.features?.length
+    });
+
+    // Remove existing layers if present
+    if (map.current.getLayer("tract-polygons-fill")) {
+      map.current.removeLayer("tract-polygons-fill");
+    }
+    if (map.current.getLayer("tract-polygons-outline")) {
+      map.current.removeLayer("tract-polygons-outline");
+    }
+    if (map.current.getLayer("selected-tract-fill")) {
+      map.current.removeLayer("selected-tract-fill");
+    }
+    if (map.current.getLayer("selected-tract-outline")) {
+      map.current.removeLayer("selected-tract-outline");
+    }
+    if (map.current.getSource("tract-polygons")) {
+      map.current.removeSource("tract-polygons");
+    }
+
+    // Add source for tract polygons
+    map.current.addSource("tract-polygons", {
+      type: "geojson",
+      data: tractGeometries,
+    });
+
+    // Add invisible fill layer for click detection
+    map.current.addLayer({
+      id: "tract-polygons-fill",
+      type: "fill",
+      source: "tract-polygons",
+      paint: {
+        "fill-opacity": 0, // Invisible unless selected
+      },
+    });
+
+    // Add subtle outline for all tracts (always visible but subtle)
+    map.current.addLayer({
+      id: "tract-polygons-outline",
+      type: "line",
+      source: "tract-polygons",
+      paint: {
+        "line-color": "#94a3b8",
+        "line-width": 1,
+        "line-opacity": 0.3,
+      },
+    });
+
+    // Add fill layer for selected tract
+    map.current.addLayer({
+      id: "selected-tract-fill",
+      type: "fill",
+      source: "tract-polygons",
+      paint: {
+        "fill-color": [
+          "interpolate",
+          ["linear"],
+          ["get", "coverage_percent"],
+          0, "#DC2626",      // 0% coverage = Red
+          25, "#F59E0B",     // 25% = Orange
+          50, "#FCD34D",     // 50% = Yellow
+          75, "#A3E635",     // 75% = Light green
+          100, "#19B987"     // 100% = Green
+        ],
+        "fill-opacity": [
+          "case",
+          ["==", ["get", "geoid"], selectedTractId || ""],
+          0.5,  // Show selected tract
+          0     // Hide others
+        ],
+      },
+    });
+
+    // Add outline layer for selected tract
+    map.current.addLayer({
+      id: "selected-tract-outline",
+      type: "line",
+      source: "tract-polygons",
+      paint: {
+        "line-color": "#1e40af",
+        "line-width": [
+          "case",
+          ["==", ["get", "geoid"], selectedTractId || ""],
+          3,  // Thick outline for selected
+          0   // No outline for others
+        ],
+        "line-opacity": 1,
+      },
+    });
+
+    // Cursor pointer on hover
+    map.current.on("mouseenter", "tract-polygons-fill", () => {
+      if (map.current) map.current.getCanvas().style.cursor = "pointer";
+    });
+
+    map.current.on("mouseleave", "tract-polygons-fill", () => {
+      if (map.current) map.current.getCanvas().style.cursor = "";
+    });
+
+    console.log('✓ Tract polygon layers added. Selected tract:', selectedTractId);
+  }, [tractGeometries, mapLoaded, selectedTractId]);
+
+  // Debug: Log when selectedTractId changes
+  useEffect(() => {
+    if (selectedTractId) {
+      console.log('📍 Selected tract ID changed to:', selectedTractId);
+    } else {
+      console.log('📍 Tract deselected');
+    }
+  }, [selectedTractId]);
+
+  // Handle clicks on tract polygons
+  useEffect(() => {
+    if (!map.current || !mapLoaded || !tractGeometries) return;
+
+    const handleTractClick = (e: any) => {
+      if (!e.features || !e.features[0]) return;
+      const feature = e.features[0];
+      const tractId = feature.properties?.geoid || feature.properties?.GEOID;
+
+      console.log('Tract clicked:', tractId);
+
+      // Toggle selection
+      if (selectedTractId === tractId) {
+        setSelectedTractId(null); // Deselect if clicking same tract
+      } else {
+        setSelectedTractId(tractId); // Select new tract
+
+        // Show popup with tract info
+        const props = feature.properties;
+        new mapboxgl.Popup()
+          .setLngLat(e.lngLat)
+          .setHTML(
+            `
+            <div style="font-family: system-ui; padding: 8px; min-width: 200px;">
+              <strong style="color: #1f2937; font-size: 14px;">Census Tract ${tractId}</strong>
+              <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+                <div style="margin: 4px 0;"><strong>Coverage:</strong> ${props?.coverage_percent?.toFixed(1) || 0}%</div>
+                <div style="margin: 4px 0;"><strong>Population:</strong> ${props?.population?.toLocaleString() || 'N/A'}</div>
+                <div style="margin: 4px 0;"><strong>Poverty Rate:</strong> ${props?.poverty_rate?.toFixed(1) || 0}%</div>
+                <div style="margin: 4px 0;"><strong>Impact Score:</strong> ${props?.impact_score?.toFixed(1) || 'N/A'}</div>
+                ${props?.deployment_rank ? `<div style="margin: 4px 0;"><strong>Rank:</strong> #${props.deployment_rank}</div>` : ''}
+              </div>
+            </div>
+          `
+          )
+          .addTo(map.current!);
+      }
+    };
+
+    map.current.on("click", "tract-polygons-fill", handleTractClick);
+
+    return () => {
+      if (map.current) {
+        map.current.off("click", "tract-polygons-fill", handleTractClick);
+      }
+    };
+  }, [mapLoaded, tractGeometries, selectedTractId]);
 
   // Toggle layer visibility
   const toggleLayer = (layerId: string) => {
@@ -543,50 +805,17 @@ export default function InteractiveMap({
           </div>
 
           {/* Map Legend */}
-          <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
-            <div>
-              <h4 className="font-medium text-foreground mb-2">Census Data</h4>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-[#19B987]" />
-                  <span className="text-accent">High Poverty</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-[#2691FF]" />
-                  <span className="text-accent">Low Internet Access</span>
-                </div>
-              </div>
+          <div className="mt-4 flex gap-6 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-[#2691FF]" />
+              <span className="text-accent">Boundary</span>
             </div>
-            <div>
-              <h4 className="font-medium text-foreground mb-2">Local Assets</h4>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-[#7C3AED]" />
-                  <span className="text-accent">Libraries</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-[#DC2626]" />
-                  <span className="text-accent">Community Centers</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-[#7DBDFF]" />
-                  <span className="text-accent">Transit Stops</span>
-                </div>
+            {candidateSites && candidateSites.length > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full bg-[#2691FF]" />
+                <span className="text-accent">Candidate Sites</span>
               </div>
-            </div>
-            <div>
-              <h4 className="font-medium text-foreground mb-2">WiFi Sites</h4>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-[#2691FF]" />
-                  <span className="text-accent">Candidate Sites</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-[#6B7280]" />
-                  <span className="text-accent">Existing WiFi</span>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

@@ -4,7 +4,9 @@ Deployment Pipeline API Router
 Endpoints for running deployment site analysis and ranking
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
+from typing import Literal, Optional
 import sys
 import os
 from pathlib import Path
@@ -16,32 +18,53 @@ router = APIRouter(
 )
 
 
-@router.post("/run-pipeline/{city_slug}")
-async def run_deployment_pipeline(city_slug: str):
+class LocationInput(BaseModel):
+    """Location information for deployment pipeline"""
+    name: str
+    type: Literal["state", "city"]
+    state: Optional[str] = None  # Required for cities
+    slug: str
+
+
+@router.post("/run-pipeline")
+async def run_deployment_pipeline_for_location(location: LocationInput):
     """
-    Run the complete deployment pipeline for a city and return results
+    Run the complete deployment pipeline for a state or city
 
     Args:
-        city_slug: City identifier (e.g., 'madison-county-fl')
+        location: Location information (name, type, state, slug)
 
     Returns:
         JSON containing ranked deployment sites and geometries
     """
     try:
-        # Add data_pipeline directory to path
+        # Add data_pipeline and services directories to path
         current_dir = Path(__file__).parent.parent
         pipeline_dir = current_dir / 'data_pipeline'
+        services_dir = current_dir / 'services'
+
         if str(pipeline_dir) not in sys.path:
             sys.path.insert(0, str(pipeline_dir))
+        if str(services_dir) not in sys.path:
+            sys.path.insert(0, str(services_dir))
 
-        from run_pipeline import run_deployment_pipeline
+        from run_pipeline import run_deployment_pipeline_with_location
 
-        # Run the pipeline
-        result = run_deployment_pipeline(city_slug)
+        # Run the pipeline with location information
+        result = run_deployment_pipeline_with_location(
+            location_name=location.name,
+            location_type=location.type,
+            state_name=location.state,
+            slug=location.slug
+        )
 
         return {
             "status": "success",
-            "city_slug": city_slug,
+            "location": {
+                "name": location.name,
+                "type": location.type,
+                "slug": location.slug
+            },
             "data": result
         }
 
