@@ -48,6 +48,7 @@ export default function InteractiveMap({
   recommendations,
   mapRefProp,
   tractGeometries,
+  allWifiZones,
 }: {
   cityCenter?: [number, number];
   cityName?: string;
@@ -59,6 +60,7 @@ export default function InteractiveMap({
     centerOnSite: (siteIndex: number) => void;
   } | null>;
   tractGeometries?: any; // GeoJSON FeatureCollection from pipeline
+  allWifiZones?: Record<string, any[]>; // Map of geoid -> WiFi zones for all tracts
 }) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -758,6 +760,138 @@ export default function InteractiveMap({
       console.log('✓ WiFi coverage circle added');
     }
   }, [selectedSiteCoords, mapLoaded]);
+
+  // Add WiFi deployment zone markers (only for selected tract)
+  useEffect(() => {
+    if (!map.current || !mapLoaded || !allWifiZones) return;
+
+    // Only show WiFi zones if a tract is selected
+    if (!selectedTractId) {
+      // Remove WiFi zones if no tract selected
+      if (map.current.getLayer('wifi-zones')) {
+        map.current.removeLayer('wifi-zones');
+      }
+      if (map.current.getLayer('wifi-zones-labels')) {
+        map.current.removeLayer('wifi-zones-labels');
+      }
+      if (map.current.getSource('wifi-zones')) {
+        map.current.removeSource('wifi-zones');
+      }
+      return;
+    }
+
+    // Get WiFi zones for the selected tract
+    const wifiZones = allWifiZones[selectedTractId];
+    if (!wifiZones || wifiZones.length === 0) {
+      console.log('No WiFi zones for selected tract:', selectedTractId);
+      return;
+    }
+
+    console.log('Adding WiFi deployment zones for tract', selectedTractId, ':', wifiZones.length);
+
+    // Create GeoJSON features for WiFi zones
+    const wifiZoneFeatures = wifiZones.map((zone) => ({
+      type: 'Feature' as const,
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [zone.lng, zone.lat],
+      },
+      properties: {
+        zone_id: zone.zone_id,
+        offset_km: zone.offset_from_centroid_km,
+        within_bounds: zone.within_bounds,
+        fallback: zone.fallback_to_centroid || false,
+      },
+    }));
+
+    const wifiZonesGeoJSON = {
+      type: 'FeatureCollection' as const,
+      features: wifiZoneFeatures,
+    };
+
+    // Remove existing WiFi zones layer if present
+    if (map.current.getLayer('wifi-zones')) {
+      map.current.removeLayer('wifi-zones');
+    }
+    if (map.current.getLayer('wifi-zones-labels')) {
+      map.current.removeLayer('wifi-zones-labels');
+    }
+    if (map.current.getSource('wifi-zones')) {
+      map.current.removeSource('wifi-zones');
+    }
+
+    // Add WiFi zones source and layer
+    map.current.addSource('wifi-zones', {
+      type: 'geojson',
+      data: wifiZonesGeoJSON,
+    });
+
+    // Add WiFi zone markers (green WiFi icons)
+    map.current.addLayer({
+      id: 'wifi-zones',
+      type: 'circle',
+      source: 'wifi-zones',
+      paint: {
+        'circle-radius': 12,
+        'circle-color': [
+          'case',
+          ['get', 'fallback'],
+          '#FFA500', // Orange for fallback zones
+          '#10b981'  // Green for valid zones
+        ],
+        'circle-stroke-width': 3,
+        'circle-stroke-color': '#ffffff',
+        'circle-opacity': 0.9,
+      },
+    });
+
+    // Add zone labels (1, 2, 3)
+    map.current.addLayer({
+      id: 'wifi-zones-labels',
+      type: 'symbol',
+      source: 'wifi-zones',
+      layout: {
+        'text-field': ['get', 'zone_id'],
+        'text-size': 12,
+        'text-font': ['DIN Offc Pro Bold', 'Arial Unicode MS Bold'],
+      },
+      paint: {
+        'text-color': '#ffffff',
+      },
+    });
+
+    // Add click handler for WiFi zones
+    map.current.on('click', 'wifi-zones', (e) => {
+      if (!e.features || !e.features[0] || !map.current) return;
+      const props = e.features[0].properties;
+
+      new mapboxgl.Popup()
+        .setLngLat(e.lngLat)
+        .setHTML(
+          `
+          <div style="font-family: system-ui; padding: 8px;">
+            <strong style="color: #1f2937; font-size: 14px;">WiFi Zone ${props?.zone_id}</strong><br/>
+            <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+              <div><strong>Status:</strong> ${props?.within_bounds ? '✓ Optimally placed' : '⚠ Using centroid'}</div>
+              <div><strong>Coverage:</strong> ~400m radius</div>
+            </div>
+          </div>
+        `
+        )
+        .addTo(map.current);
+    });
+
+    // Add hover effect
+    map.current.on('mouseenter', 'wifi-zones', () => {
+      if (map.current) map.current.getCanvas().style.cursor = 'pointer';
+    });
+
+    map.current.on('mouseleave', 'wifi-zones', () => {
+      if (map.current) map.current.getCanvas().style.cursor = '';
+    });
+
+    console.log('✓ WiFi zones added to map');
+  }, [allWifiZones, selectedTractId, mapLoaded]);
 
   // Handle clicks on tract polygons
   useEffect(() => {

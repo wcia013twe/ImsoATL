@@ -22,6 +22,7 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
   const [recommendations, setRecommendations] = useState<DeploymentPlan | null>(null);
   const [isRunningPipeline, setIsRunningPipeline] = useState(false);
   const [tractGeometries, setTractGeometries] = useState<any>(null);
+  const [allWifiZones, setAllWifiZones] = useState<Record<string, any[]>>({});
   const mapRef = useRef<{
     showRecommendations: (plan: DeploymentPlan) => void;
     centerOnSite: (siteIndex: number) => void;
@@ -104,6 +105,12 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
           setTractGeometries(data.data.geometries);
         }
 
+        // Store all WiFi deployment zones (map of geoid -> zones)
+        if (data.data.all_wifi_zones) {
+          console.log('Storing WiFi zones for all tracts:', Object.keys(data.data.all_wifi_zones).length);
+          setAllWifiZones(data.data.all_wifi_zones);
+        }
+
         // Update recommendations and open sidebar
         handleRecommendationsReceived(deploymentPlan);
 
@@ -172,6 +179,7 @@ export default function DashboardPage({ params }: { params: { city: string } }) 
             recommendations={recommendations}
             mapRefProp={mapRef}
             tractGeometries={tractGeometries}
+            allWifiZones={allWifiZones}
           />
           {/* <Footer /> */}
         </div>

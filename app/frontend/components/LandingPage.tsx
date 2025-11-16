@@ -1,12 +1,13 @@
 import AnimatedGlobe from './AnimatedGlobe';
 import CitySelector from './CitySelector';
+import Globe3D from './Globe3D';
 
 export default function LandingPage() {
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-gray-950">
       {/* Animated Globe Background */}
       <div className="absolute inset-0 w-full h-full opacity-30">
-        <AnimatedGlobe />
+        <Globe3D />
       </div>
 
       {/* Dark overlay for better text contrast */}

@@ -14,10 +14,11 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, Any, Optional, Literal
+from typing import Dict, Any, Optional, Literal, List, Tuple
 import pandas as pd
-from shapely.geometry import shape
+from shapely.geometry import shape, Point
 from fetch_tract_geometry import TractGeometryFetcher
+import math
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,6 +30,75 @@ if str(services_dir) not in sys.path:
     sys.path.insert(0, str(services_dir))
 
 from tiger_api import TIGERAPIService
+
+
+def calculate_wifi_zones_within_tract(
+    centroid_lng: float,
+    centroid_lat: float,
+    tract_geometry,
+    num_zones: int = 3,
+    offset_distance_km: float = 0.5
+) -> List[Dict[str, Any]]:
+    """
+    Calculate WiFi placement zones within a tract by offsetting from centroid.
+
+    Args:
+        centroid_lng: Centroid longitude
+        centroid_lat: Centroid latitude
+        tract_geometry: Shapely geometry of the tract polygon
+        num_zones: Number of WiFi zones to generate (default 3)
+        offset_distance_km: Distance to offset from centroid in km (default 0.5km)
+
+    Returns:
+        List of WiFi zone dictionaries with lng/lat coordinates
+    """
+    wifi_zones = []
+
+    # Convert km to degrees (approximate at mid-latitudes)
+    # 1 degree latitude ≈ 111 km
+    # 1 degree longitude ≈ 111 km * cos(latitude)
+    lat_offset = offset_distance_km / 111.0
+    lng_offset = offset_distance_km / (111.0 * math.cos(math.radians(centroid_lat)))
+
+    # Define offset patterns for 3 zones (triangular distribution)
+    # Zone 1: North
+    # Zone 2: Southwest
+    # Zone 3: Southeast
+    offset_patterns = [
+        (0, lat_offset),                                    # North
+        (-lng_offset * 0.866, -lat_offset * 0.5),          # Southwest (60° angle)
+        (lng_offset * 0.866, -lat_offset * 0.5),           # Southeast (60° angle)
+    ]
+
+    for i, (lng_off, lat_off) in enumerate(offset_patterns[:num_zones]):
+        # Calculate candidate point
+        candidate_lng = centroid_lng + lng_off
+        candidate_lat = centroid_lat + lat_off
+        candidate_point = Point(candidate_lng, candidate_lat)
+
+        # Check if point is within tract bounds
+        if tract_geometry.contains(candidate_point):
+            wifi_zones.append({
+                'zone_id': i + 1,
+                'lng': candidate_lng,
+                'lat': candidate_lat,
+                'offset_from_centroid_km': offset_distance_km,
+                'within_bounds': True
+            })
+            logger.info(f"    Zone {i+1}: ({candidate_lng:.6f}, {candidate_lat:.6f}) ✓ Within tract")
+        else:
+            # If outside bounds, use centroid as fallback
+            wifi_zones.append({
+                'zone_id': i + 1,
+                'lng': centroid_lng,
+                'lat': centroid_lat,
+                'offset_from_centroid_km': 0,
+                'within_bounds': False,
+                'fallback_to_centroid': True
+            })
+            logger.info(f"    Zone {i+1}: Outside tract bounds, using centroid fallback")
+
+    return wifi_zones
 
 
 def run_deployment_pipeline_with_location(
@@ -264,10 +334,11 @@ def run_deployment_pipeline_with_location(
         logger.info("  ⚠ No tracts to rank")
 
     # Step 4: Fetch tract geometries and calculate centroids
-    logger.info("\n[4/4] Fetching tract geometries and calculating centroids...")
+    logger.info("\n[4/4] Fetching tract geometries and calculating WiFi zones...")
 
     tract_geoids = [t['geoid'] for t in ranked_sites]
     tract_geo_features = []
+    all_wifi_zones = {}  # Map of geoid -> wifi_zones
 
     # Filter the previously fetched features to only include ranked sites
     for feature in tract_features:
@@ -286,10 +357,22 @@ def run_deployment_pipeline_with_location(
                     'lat': centroid.y
                 }
 
+                # Calculate 3 WiFi placement zones for EVERY tract
+                wifi_zones = calculate_wifi_zones_within_tract(
+                    centroid_lng=centroid.x,
+                    centroid_lat=centroid.y,
+                    tract_geometry=tract_geom,
+                    num_zones=3,
+                    offset_distance_km=0.5
+                )
+                site_data['wifi_zones'] = wifi_zones
+                all_wifi_zones[str(geoid)] = wifi_zones
+
                 feature['properties'].update(site_data)
                 tract_geo_features.append(feature)
 
     logger.info(f"  ✓ Fetched {len(tract_geo_features)} tract geometries with centroids")
+    logger.info(f"  ✓ Generated WiFi zones for {len(all_wifi_zones)} tracts ({len(all_wifi_zones) * 3} total zones)")
 
     # Return results
     result = {
@@ -301,6 +384,7 @@ def run_deployment_pipeline_with_location(
         },
         'total_tracts': len(ranked_sites),
         'sites': ranked_sites,
+        'all_wifi_zones': all_wifi_zones,  # Map of geoid -> wifi_zones for all tracts
         'geometries': {
             'type': 'FeatureCollection',
             'features': tract_geo_features
@@ -477,10 +561,11 @@ def run_deployment_pipeline(city_slug: str) -> Dict[str, Any]:
         logger.info("  ⚠ No tracts to rank")
 
     # Step 3: Fetch tract geometries and calculate centroids
-    logger.info("\n[3/3] Fetching tract geometries and calculating centroids...")
+    logger.info("\n[3/3] Fetching tract geometries and calculating WiFi zones...")
 
     tract_geoids = [t['geoid'] for t in ranked_sites]
     tract_geo_features = []
+    all_wifi_zones = {}  # Map of geoid -> wifi_zones
 
     # Filter the previously fetched features to only include ranked sites
     for feature in tract_features:
@@ -499,16 +584,29 @@ def run_deployment_pipeline(city_slug: str) -> Dict[str, Any]:
                     'lat': centroid.y
                 }
 
+                # Calculate 3 WiFi placement zones for EVERY tract
+                wifi_zones = calculate_wifi_zones_within_tract(
+                    centroid_lng=centroid.x,
+                    centroid_lat=centroid.y,
+                    tract_geometry=tract_geom,
+                    num_zones=3,
+                    offset_distance_km=0.5
+                )
+                site_data['wifi_zones'] = wifi_zones
+                all_wifi_zones[str(geoid)] = wifi_zones
+
                 feature['properties'].update(site_data)
                 tract_geo_features.append(feature)
 
     logger.info(f"  ✓ Fetched {len(tract_geo_features)} tract geometries with centroids")
+    logger.info(f"  ✓ Generated WiFi zones for {len(all_wifi_zones)} tracts ({len(all_wifi_zones) * 3} total zones)")
 
     # Return results
     result = {
         'city_slug': city_slug,
         'total_tracts': len(ranked_sites),
         'sites': ranked_sites,
+        'all_wifi_zones': all_wifi_zones,  # Map of geoid -> wifi_zones for all tracts
         'geometries': {
             'type': 'FeatureCollection',
             'features': tract_geo_features
