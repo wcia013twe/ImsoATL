@@ -183,11 +183,7 @@ function DashboardContent({ params }: { params: { city: string } }) {
 
       {/* Main Dashboard - shifts when sidebars are open */}
       <div
-        className={`flex-1 transition-all duration-300 pt-[73px] ${
-          isChatOpen ? 'ml-[32rem]' : 'ml-0'
-        } ${
-          isRecommendationsOpen ? 'mr-96' : 'mr-0'
-        }`}
+        className={`flex-1 transition-all duration-300 pt-[73px] ${isChatOpen ? 'ml-[32rem]' : 'ml-0'} ${isRecommendationsOpen ? 'mr-96' : 'mr-0'}`}
       >
         <div className="relative py-5">
           {/* <PrioritySliders /> */}
