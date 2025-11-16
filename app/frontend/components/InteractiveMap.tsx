@@ -50,6 +50,7 @@ export default function InteractiveMap({
   tractGeometries,
   allWifiZones,
   onTractClick,
+  onSiteAskAI,
 }: {
   cityCenter?: [number, number];
   cityName?: string;
@@ -63,6 +64,7 @@ export default function InteractiveMap({
   tractGeometries?: any; // GeoJSON FeatureCollection from pipeline
   allWifiZones?: Record<string, any[]>; // Map of geoid -> WiFi zones for all tracts
   onTractClick?: (tractId: string, tractData: any) => void;
+  onSiteAskAI?: (siteData: any, promptType: 'site' | 'tract' | 'wifi_zone') => void;
 }) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -190,21 +192,71 @@ export default function InteractiveMap({
               if (!map.current || !siteCoordinates[siteIndex]) return;
 
               const siteName = site.county || site.name || location?.name || `Site ${siteIndex + 1}`;
+
+              // Create popup container with DOM elements
+              const popupContainer = document.createElement('div');
+              popupContainer.style.fontFamily = 'system-ui';
+              popupContainer.style.padding = '8px';
+              popupContainer.style.minWidth = '200px';
+
+              popupContainer.innerHTML = `
+                <div>
+                  <strong style="color: #1f2937; font-size: 14px;">${siteName}</strong><br/>
+                  <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+                    <div><strong>Score:</strong> ${site.composite_score}/100</div>
+                    <div><strong>Poverty Rate:</strong> ${site.poverty_rate.toFixed(2)}%</div>
+                    <div><strong>No Internet:</strong> ${site.no_internet_pct.toFixed(2)}%</div>
+                    <div><strong>Priority:</strong> ${site.recommendation_tier}</div>
+                  </div>
+                </div>
+              `;
+
+              // Create "Ask Atlas" button
+              const askAIButton = document.createElement('button');
+              askAIButton.innerHTML = '💬 Ask Atlas';
+              askAIButton.style.cssText = `
+                margin-top: 12px;
+                width: 100%;
+                padding: 8px 12px;
+                background: linear-gradient(135deg, #2691FF 0%, #1e40af 100%);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 12px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+              `;
+
+              askAIButton.onmouseover = () => {
+                askAIButton.style.transform = 'scale(1.02)';
+                askAIButton.style.boxShadow = '0 4px 12px rgba(38, 145, 255, 0.3)';
+              };
+              askAIButton.onmouseout = () => {
+                askAIButton.style.transform = 'scale(1)';
+                askAIButton.style.boxShadow = 'none';
+              };
+
+              askAIButton.onclick = (e) => {
+                e.stopPropagation();
+                if (onSiteAskAI) {
+                  onSiteAskAI({
+                    tractId: site.tract_id,
+                    siteName: siteName,
+                    compositeScore: site.composite_score,
+                    povertyRate: site.poverty_rate,
+                    noInternetPct: site.no_internet_pct,
+                    tier: site.recommendation_tier,
+                    population: site.total_population
+                  }, 'site');
+                }
+              };
+
+              popupContainer.appendChild(askAIButton);
+
               const popup = new mapboxgl.Popup()
                 .setLngLat(siteCoordinates[siteIndex])
-                .setHTML(
-                  `
-                  <div style="font-family: system-ui; padding: 4px;">
-                    <strong style="color: #1f2937; font-size: 14px;">${siteName}</strong><br/>
-                    <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
-                      <div><strong>Score:</strong> ${site.composite_score}/100</div>
-                      <div><strong>Poverty Rate:</strong> ${site.poverty_rate.toFixed(2)}%</div>
-                      <div><strong>No Internet:</strong> ${site.no_internet_pct.toFixed(2)}%</div>
-                      <div><strong>Priority:</strong> ${site.recommendation_tier}</div>
-                    </div>
-                  </div>
-                `
-                );
+                .setDOMContent(popupContainer);
               showPopup(popup);
             }, 800);
           }
@@ -566,21 +618,71 @@ export default function InteractiveMap({
         setTimeout(() => {
           if (!map.current) return;
           const siteName = props?.county || props?.name || location?.name || 'Site';
+
+          // Create popup container with DOM elements
+          const popupContainer = document.createElement('div');
+          popupContainer.style.fontFamily = 'system-ui';
+          popupContainer.style.padding = '8px';
+          popupContainer.style.minWidth = '200px';
+
+          popupContainer.innerHTML = `
+            <div>
+              <strong style="color: #1f2937; font-size: 14px;">${siteName}</strong><br/>
+              <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+                <div><strong>Score:</strong> ${props?.composite_score}/100</div>
+                <div><strong>Poverty Rate:</strong> ${props?.poverty_rate}%</div>
+                <div><strong>No Internet:</strong> ${props?.no_internet_pct}%</div>
+                <div><strong>Priority:</strong> ${props?.recommendation_tier}</div>
+              </div>
+            </div>
+          `;
+
+          // Create "Ask Atlas" button
+          const askAIButton = document.createElement('button');
+          askAIButton.innerHTML = '💬 Ask Atlas';
+          askAIButton.style.cssText = `
+            margin-top: 12px;
+            width: 100%;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #2691FF 0%, #1e40af 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+          `;
+
+          askAIButton.onmouseover = () => {
+            askAIButton.style.transform = 'scale(1.02)';
+            askAIButton.style.boxShadow = '0 4px 12px rgba(38, 145, 255, 0.3)';
+          };
+          askAIButton.onmouseout = () => {
+            askAIButton.style.transform = 'scale(1)';
+            askAIButton.style.boxShadow = 'none';
+          };
+
+          askAIButton.onclick = (e) => {
+            e.stopPropagation();
+            if (onSiteAskAI) {
+              onSiteAskAI({
+                tractId: props?.tract_id,
+                siteName: siteName,
+                compositeScore: props?.composite_score,
+                povertyRate: props?.poverty_rate,
+                noInternetPct: props?.no_internet_pct,
+                tier: props?.recommendation_tier,
+                population: props?.total_population
+              }, 'site');
+            }
+          };
+
+          popupContainer.appendChild(askAIButton);
+
           const popup = new mapboxgl.Popup()
             .setLngLat(e.lngLat)
-            .setHTML(
-              `
-              <div style="font-family: system-ui; padding: 4px;">
-                <strong style="color: #1f2937; font-size: 14px;">${siteName}</strong><br/>
-                <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
-                  <div><strong>Score:</strong> ${props?.composite_score}/100</div>
-                  <div><strong>Poverty Rate:</strong> ${props?.poverty_rate}%</div>
-                  <div><strong>No Internet:</strong> ${props?.no_internet_pct}%</div>
-                  <div><strong>Priority:</strong> ${props?.recommendation_tier}</div>
-                </div>
-              </div>
-            `
-            );
+            .setDOMContent(popupContainer);
           showPopup(popup);
         }, 800);
       });
@@ -885,19 +987,64 @@ export default function InteractiveMap({
       if (!e.features || !e.features[0] || !map.current) return;
       const props = e.features[0].properties;
 
+      // Create popup container with DOM elements
+      const popupContainer = document.createElement('div');
+      popupContainer.style.fontFamily = 'system-ui';
+      popupContainer.style.padding = '8px';
+      popupContainer.style.minWidth = '180px';
+
+      popupContainer.innerHTML = `
+        <div>
+          <strong style="color: #1f2937; font-size: 14px;">WiFi Zone ${props?.zone_id}</strong><br/>
+          <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+            <div><strong>Status:</strong> ${props?.within_bounds ? '✓ Optimally placed' : '⚠ Using centroid'}</div>
+            <div><strong>Coverage:</strong> ~400m radius</div>
+          </div>
+        </div>
+      `;
+
+      // Create "Ask Atlas" button
+      const askAIButton = document.createElement('button');
+      askAIButton.innerHTML = '💬 Ask Atlas';
+      askAIButton.style.cssText = `
+        margin-top: 12px;
+        width: 100%;
+        padding: 8px 12px;
+        background: linear-gradient(135deg, #2691FF 0%, #1e40af 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      `;
+
+      askAIButton.onmouseover = () => {
+        askAIButton.style.transform = 'scale(1.02)';
+        askAIButton.style.boxShadow = '0 4px 12px rgba(38, 145, 255, 0.3)';
+      };
+      askAIButton.onmouseout = () => {
+        askAIButton.style.transform = 'scale(1)';
+        askAIButton.style.boxShadow = 'none';
+      };
+
+      askAIButton.onclick = (e) => {
+        e.stopPropagation();
+        if (onSiteAskAI) {
+          onSiteAskAI({
+            zoneId: props?.zone_id,
+            withinBounds: props?.within_bounds,
+            tractId: selectedTractId
+          }, 'wifi_zone');
+        }
+      };
+
+      popupContainer.appendChild(askAIButton);
+
       const popup = new mapboxgl.Popup()
         .setLngLat(e.lngLat)
-        .setHTML(
-          `
-          <div style="font-family: system-ui; padding: 8px;">
-            <strong style="color: #1f2937; font-size: 14px;">WiFi Zone ${props?.zone_id}</strong><br/>
-            <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
-              <div><strong>Status:</strong> ${props?.within_bounds ? '✓ Optimally placed' : '⚠ Using centroid'}</div>
-              <div><strong>Coverage:</strong> ~400m radius</div>
-            </div>
-          </div>
-        `
-        );
+        .setDOMContent(popupContainer);
       showPopup(popup);
     });
 
@@ -933,22 +1080,72 @@ export default function InteractiveMap({
         // Show popup with tract info
         const props = feature.properties;
         const locationName = location?.name || 'Unknown Location';
+
+        // Create popup container with DOM elements
+        const popupContainer = document.createElement('div');
+        popupContainer.style.fontFamily = 'system-ui';
+        popupContainer.style.padding = '8px';
+        popupContainer.style.minWidth = '200px';
+
+        popupContainer.innerHTML = `
+          <div>
+            <strong style="color: #1f2937; font-size: 14px;">${locationName}</strong>
+            <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+              <div style="margin: 4px 0;"><strong>Coverage:</strong> ${props?.coverage_percent?.toFixed(1) || 0}%</div>
+              <div style="margin: 4px 0;"><strong>Population:</strong> ${props?.population?.toLocaleString() || 'N/A'}</div>
+              <div style="margin: 4px 0;"><strong>Poverty Rate:</strong> ${props?.poverty_rate?.toFixed(1) || 0}%</div>
+              <div style="margin: 4px 0;"><strong>Impact Score:</strong> ${props?.impact_score?.toFixed(1) || 'N/A'}</div>
+              ${props?.deployment_rank ? `<div style="margin: 4px 0;"><strong>Rank:</strong> #${props.deployment_rank}</div>` : ''}
+            </div>
+          </div>
+        `;
+
+        // Create "Ask Atlas" button
+        const askAIButton = document.createElement('button');
+        askAIButton.innerHTML = '💬 Ask Atlas';
+        askAIButton.style.cssText = `
+          margin-top: 12px;
+          width: 100%;
+          padding: 8px 12px;
+          background: linear-gradient(135deg, #2691FF 0%, #1e40af 100%);
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        `;
+
+        askAIButton.onmouseover = () => {
+          askAIButton.style.transform = 'scale(1.02)';
+          askAIButton.style.boxShadow = '0 4px 12px rgba(38, 145, 255, 0.3)';
+        };
+        askAIButton.onmouseout = () => {
+          askAIButton.style.transform = 'scale(1)';
+          askAIButton.style.boxShadow = 'none';
+        };
+
+        askAIButton.onclick = (e) => {
+          e.stopPropagation();
+          if (onSiteAskAI) {
+            onSiteAskAI({
+              geoid: tractId,
+              locationName: locationName,
+              coveragePercent: props?.coverage_percent,
+              population: props?.population,
+              povertyRate: props?.poverty_rate,
+              impactScore: props?.impact_score,
+              deploymentRank: props?.deployment_rank
+            }, 'tract');
+          }
+        };
+
+        popupContainer.appendChild(askAIButton);
+
         const popup = new mapboxgl.Popup()
           .setLngLat(e.lngLat)
-          .setHTML(
-            `
-            <div style="font-family: system-ui; padding: 8px; min-width: 200px;">
-              <strong style="color: #1f2937; font-size: 14px;">${locationName}</strong>
-              <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
-                <div style="margin: 4px 0;"><strong>Coverage:</strong> ${props?.coverage_percent?.toFixed(1) || 0}%</div>
-                <div style="margin: 4px 0;"><strong>Population:</strong> ${props?.population?.toLocaleString() || 'N/A'}</div>
-                <div style="margin: 4px 0;"><strong>Poverty Rate:</strong> ${props?.poverty_rate?.toFixed(1) || 0}%</div>
-                <div style="margin: 4px 0;"><strong>Impact Score:</strong> ${props?.impact_score?.toFixed(1) || 'N/A'}</div>
-                ${props?.deployment_rank ? `<div style="margin: 4px 0;"><strong>Rank:</strong> #${props.deployment_rank}</div>` : ''}
-              </div>
-            </div>
-          `
-          );
+          .setDOMContent(popupContainer);
         showPopup(popup);
       }
     };

@@ -99,6 +99,29 @@ function DashboardContent({ params }: { params: { city: string } }) {
     }
   };
 
+  const handleSiteAskAI = (siteData: any, promptType: 'site' | 'tract' | 'wifi_zone') => {
+    let prompt = '';
+
+    switch (promptType) {
+      case 'site':
+        prompt = `Tell me more about ${siteData.siteName || 'this deployment site'}. Why was it ranked with a score of ${siteData.compositeScore}/100? What makes it a ${siteData.tier} priority? With a ${siteData.povertyRate}% poverty rate and ${siteData.noInternetPct}% of households without internet, what impact could WiFi deployment have here?`;
+        break;
+      case 'tract':
+        prompt = `Analyze Census Tract ${siteData.geoid}. With a ${siteData.povertyRate?.toFixed(1) || 0}% poverty rate, ${siteData.coveragePercent?.toFixed(1) || 0}% WiFi coverage, and ${siteData.population?.toLocaleString() || 'N/A'} residents, what are the key opportunities and challenges for WiFi deployment in this area?`;
+        break;
+      case 'wifi_zone':
+        prompt = `Explain the WiFi deployment zone ${siteData.zoneId} placement strategy. Why was this location ${siteData.withinBounds ? 'optimally chosen' : 'using a centroid fallback'}? What coverage and impact can we expect from this zone?`;
+        break;
+    }
+
+    setChatPrompt(prompt);
+
+    // Open chat sidebar if closed
+    if (!isChatOpen) {
+      setIsChatOpen(true);
+    }
+  };
+
   const handleRunPipeline = async () => {
     if (!cityData) return;
 
@@ -215,6 +238,7 @@ function DashboardContent({ params }: { params: { city: string } }) {
             tractGeometries={tractGeometries}
             allWifiZones={allWifiZones}
             onTractClick={handleTractClick}
+            onSiteAskAI={handleSiteAskAI}
           />
           {/* <Footer /> */}
         </div>

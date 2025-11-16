@@ -77,7 +77,7 @@ export default function RecommendationsSidebar({
                 animate={{ opacity: 1, y: 0 }}
                 transition={getTransition(
                   { duration: 0.4, delay: 0.1 },
-                  shouldReduceMotion
+                  shouldReduceMotion ?? false
                 )}
                 className="px-6 py-4 border-b border-border bg-surface-hover"
               >
@@ -102,11 +102,11 @@ export default function RecommendationsSidebar({
                     <div className="text-xs text-accent mt-1">Households Connected</div>
                   </div>
                 </div>
-                {deploymentPlan.projected_impact.residents_in_poverty_served && (
+                {deploymentPlan.projected_impact.residents_below_poverty_served && (
                   <div className="mt-3 pt-3 border-t border-border">
                     <div className="text-civic-green">
                       <AnimatedNumber
-                        value={deploymentPlan.projected_impact.residents_in_poverty_served}
+                        value={deploymentPlan.projected_impact.residents_below_poverty_served}
                         format="none"
                         className="text-xl font-bold"
                       />
@@ -138,7 +138,7 @@ export default function RecommendationsSidebar({
                       hidden: { opacity: 0, x: 20 },
                       visible: { opacity: 1, x: 0 },
                     }}
-                    transition={getTransition(TRANSITION.snappy, shouldReduceMotion)}
+                    transition={getTransition(TRANSITION.snappy, shouldReduceMotion ?? false)}
                     whileHover={shouldReduceMotion ? {} : { scale: 1.02, x: -4 }}
                     whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
                   >
@@ -159,7 +159,7 @@ export default function RecommendationsSidebar({
                 animate={{ opacity: 1, scale: 1 }}
                 transition={getTransition(
                   { duration: 0.4, delay: 0.3 },
-                  shouldReduceMotion
+                  shouldReduceMotion ?? false
                 )}
                 className="text-center"
               >

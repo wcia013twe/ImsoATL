@@ -133,6 +133,8 @@ export interface WebSocketMessage {
     assets: AssetsSummary;
   };
   message?: string;
+  tract_geometries?: any;
+  all_wifi_zones?: any;
 }
 
 // Persona Simulation Types
