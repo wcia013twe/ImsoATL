@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { staggerContainer, messageSlide, getTransition, TRANSITION } from '@/utils/motionVariants';
 import type { ChatMessage, AgentStep, WebSocketMessage, DeploymentPlan } from '@/lib/types';
 
 const WEBSOCKET_URL = 'ws://localhost:8000/ws/chat';
@@ -58,6 +60,7 @@ export default function ChatSidebar({
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const shouldReduceMotion = useReducedMotion();
 
   // Update input when suggestedPrompt changes
   useEffect(() => {
@@ -321,10 +324,17 @@ export default function ChatSidebar({
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer(0.08)}
+            className="flex-1 overflow-y-auto px-6 py-4 space-y-4"
+          >
             {messages.map((message) => (
-              <div
+              <motion.div
                 key={message.id}
+                variants={messageSlide}
+                transition={getTransition(TRANSITION.subtle, shouldReduceMotion)}
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
@@ -407,7 +417,7 @@ export default function ChatSidebar({
                     </>
                   )}
                 </div>
-              </div>
+              </motion.div>
             ))}
 
             {/* Typing Indicator */}
@@ -432,26 +442,37 @@ export default function ChatSidebar({
             )}
 
             <div ref={messagesEndRef} />
-          </div>
+          </motion.div>
 
           {/* Suggestions */}
           {showSuggestions && messages.length === 1 && (
-            <div className="px-6 pb-4">
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={staggerContainer(0.06)}
+              className="px-6 pb-4"
+            >
               <div className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
                 Suggested Questions
               </div>
               <div className="space-y-2">
                 {suggestions.map((suggestion, index) => (
-                  <button
+                  <motion.button
                     key={index}
+                    variants={{
+                      hidden: { scale: 0.95, opacity: 0 },
+                      visible: { scale: 1, opacity: 1 },
+                    }}
+                    whileHover={shouldReduceMotion ? {} : { scale: 1.02, y: -2 }}
+                    whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
                     onClick={() => handleSendMessage(suggestion)}
                     className="w-full text-left px-3 py-2 rounded-lg border border-border text-sm text-accent hover:bg-surface-hover hover:text-foreground transition-colors"
                   >
                     {suggestion}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* Input */}
