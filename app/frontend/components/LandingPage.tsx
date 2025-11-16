@@ -35,7 +35,7 @@ export default function LandingPage() {
               transition={shouldReduceMotion ? { duration: 0.01 } : { delay: 0.3, duration: 0.4 }}
               className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-gray-900/60 backdrop-blur-sm border border-gray-800"
             >
-              <span className="text-xs font-bold text-gray-400 tracking-[0.25em] uppercase">All Together Linked</span>
+              <span className="text-xs font-bold text-gray-400 tracking-[0.25em] uppercase">Atlas Transmission Link</span>
               <span className="text-blue-400">•</span>
               <span className="text-blue-400 font-bold text-xs tracking-wider">ATL</span>
             </motion.div>
@@ -150,8 +150,8 @@ export default function LandingPage() {
             className="text-center max-w-3xl mx-auto pt-8 border-t border-gray-800/50"
           >
             <p className="text-base text-gray-400 leading-relaxed">
-              <span className="font-semibold text-white">All Together Linked.</span> Because when communities are connected,
-              possibilities are limitless. 
+              <span className="font-semibold text-white">Atlas Transmission Link.</span> Because when communities are connected,
+              possibilities are limitless.
             </p>
           </motion.div>
 

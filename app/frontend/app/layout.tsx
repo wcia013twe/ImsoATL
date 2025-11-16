@@ -9,8 +9,8 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "CivicConnect WiFi - Accelerating Digital Equity in Atlanta",
-  description: "AI-powered WiFi site planning for Atlanta's digital equity initiative",
+  title: "Atlas Transmission Link - Accelerating Digital Equity",
+  description: "AI-powered WiFi site planning for digital equity initiatives",
 };
 
 export default function RootLayout({
