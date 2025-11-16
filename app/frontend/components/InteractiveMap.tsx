@@ -69,6 +69,7 @@ export default function InteractiveMap({
   const [siteCoordinates, setSiteCoordinates] = useState<[number, number][]>([]);
   const [boundaryData, setBoundaryData] = useState<GeoJSON.Feature | null>(null);
   const [selectedTractId, setSelectedTractId] = useState<string | null>(null);
+  const [selectedSiteCoords, setSelectedSiteCoords] = useState<[number, number] | null>(null);
 
   // Use provided city coordinates or default to Atlanta
   const mapCenter = cityCenter || [
@@ -116,6 +117,11 @@ export default function InteractiveMap({
             console.log('🎯 Selecting tract from sidebar click:', tractId);
             setSelectedTractId(tractId);
 
+            // Set selected site coordinates for WiFi coverage circle
+            if (siteCoordinates[siteIndex]) {
+              setSelectedSiteCoords(siteCoordinates[siteIndex]);
+            }
+
             // Try to find the tract geometry and zoom to it
             if (tractGeometries && tractGeometries.features) {
               const tractFeature = tractGeometries.features.find((f: any) =>
@@ -135,7 +141,7 @@ export default function InteractiveMap({
                   map.current.fitBounds(bounds, {
                     padding: 100,
                     duration: 1000,
-                    maxZoom: 3
+                    maxZoom: 13
                   });
 
                   console.log(`Zoomed to tract ${tractId} bounds`);
@@ -479,6 +485,9 @@ export default function InteractiveMap({
           console.log('🎯 Selecting tract from marker click:', tractId);
           setSelectedTractId(tractId);
 
+          // Set selected site coordinates for WiFi coverage circle
+          setSelectedSiteCoords([e.lngLat.lng, e.lngLat.lat]);
+
           // Try to find the tract geometry and zoom to it
           if (tractGeometries && tractGeometries.features) {
             const tractFeature = tractGeometries.features.find((f: any) =>
@@ -684,6 +693,71 @@ export default function InteractiveMap({
       console.log('📍 Tract deselected');
     }
   }, [selectedTractId]);
+
+  // Add WiFi coverage circle (only shows for selected site)
+  useEffect(() => {
+    if (!map.current || !mapLoaded) return;
+
+    // Remove existing coverage layer if present
+    if (map.current.getLayer('wifi-coverage-circle')) {
+      map.current.removeLayer('wifi-coverage-circle');
+    }
+    if (map.current.getSource('wifi-coverage-circle')) {
+      map.current.removeSource('wifi-coverage-circle');
+    }
+
+    // Only show if a site is selected
+    if (selectedSiteCoords) {
+      console.log('🛜 Showing WiFi coverage circle at:', selectedSiteCoords);
+
+      // Create circle GeoJSON
+      const coverageGeoJSON = {
+        type: 'FeatureCollection' as const,
+        features: [
+          {
+            type: 'Feature' as const,
+            geometry: {
+              type: 'Point' as const,
+              coordinates: selectedSiteCoords,
+            },
+            properties: {},
+          },
+        ],
+      };
+
+      // Add source
+      map.current.addSource('wifi-coverage-circle', {
+        type: 'geojson',
+        data: coverageGeoJSON,
+      });
+
+      // Add coverage circle layer (400m radius, typical WiFi range)
+      map.current.addLayer({
+        id: 'wifi-coverage-circle',
+        type: 'circle',
+        source: 'wifi-coverage-circle',
+        paint: {
+          'circle-radius': [
+            'interpolate',
+            ['exponential', 2],
+            ['zoom'],
+            8, 2,    // At zoom 8, 2px radius
+            10, 8,   // At zoom 10, 8px radius
+            12, 20,  // At zoom 12, 20px radius
+            14, 50,  // At zoom 14, 50px radius (represents ~400m)
+            16, 100, // At zoom 16, 100px radius
+          ],
+          'circle-color': '#10b981', // Green
+          'circle-opacity': 0.15,
+          'circle-stroke-color': '#10b981',
+          'circle-stroke-width': 2,
+          'circle-stroke-opacity': 0.4,
+        },
+      }, 'ai-recommendations'); // Place below markers so markers stay on top
+
+      console.log('✓ WiFi coverage circle added');
+    }
+  }, [selectedSiteCoords, mapLoaded]);
 
   // Handle clicks on tract polygons
   useEffect(() => {
